@@ -36,10 +36,10 @@
 
 namespace ORB_SLAM2 {
 
-Viewer::Viewer(MonoORBSlam* mono_orb_slam, FrameDrawer* frame_drawer,
+Viewer::Viewer(System* system, FrameDrawer* frame_drawer,
                MapDrawer* map_drawer, Tracking* tracker,
                const string& string_setting_file)
-    : mono_orb_slam_(mono_orb_slam),
+    : system_(system),
       frame_drawer_(frame_drawer),
       map_drawer_(map_drawer),
       tracker_(tracker),
@@ -128,10 +128,10 @@ void Viewer::Run() {
     }
 
     if (menuLocalizationMode && !is_localization_mode) {
-      mono_orb_slam_->ActivateLocalizationMode();
+      system_->ActivateLocalizationMode();
       is_localization_mode = true;
     } else if (!menuLocalizationMode && is_localization_mode) {
-      mono_orb_slam_->DeactivateLocalizationMode();
+      system_->DeactivateLocalizationMode();
       is_localization_mode = false;
     }
 
@@ -154,12 +154,12 @@ void Viewer::Run() {
       menuShowPoints = true;
       menuLocalizationMode = false;
       if (is_localization_mode) {
-        mono_orb_slam_->DeactivateLocalizationMode();
+        system_->DeactivateLocalizationMode();
       }
       is_localization_mode = false;
       is_follow_ = true;
       menuFollowCamera = true;
-      mono_orb_slam_->Reset();
+      system_->Reset();
       menuReset = false;
     }
 

@@ -47,7 +47,7 @@
 
 namespace ORB_SLAM2 {
 
-Tracking::Tracking(MonoORBSlam* mono_orb_slam, ORBVocabulary* vocabulary,
+Tracking::Tracking(System* system, ORBVocabulary* vocabulary,
                    FrameDrawer* frame_drawer, MapDrawer* map_drawer, Map* map,
                    KeyFrameDatabase* keyframe_database,
                    const string& string_setting_file)
@@ -57,7 +57,7 @@ Tracking::Tracking(MonoORBSlam* mono_orb_slam, ORBVocabulary* vocabulary,
       orb_vocabulary_(vocabulary),
       keyframe_database_(keyframe_database),
       initializer_(static_cast<Initializer*>(nullptr)),
-      mono_orb_slam_(mono_orb_slam),
+      system_(system),
       viewer_(nullptr),
       frame_drawer_(frame_drawer),
       map_drawer_(map_drawer),
@@ -353,7 +353,7 @@ void Tracking::Track() {
       if (map_->KeyFramesInMap() <= 5) {
         std::cout << "Track lost soon after initialisation, reseting..."
                   << std::endl;
-        mono_orb_slam_->Reset();
+        system_->Reset();
         return;
       }
     }

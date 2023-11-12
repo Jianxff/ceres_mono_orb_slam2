@@ -22,8 +22,8 @@
 #ifndef ORBVOCABULARY_H_
 #define ORBVOCABULARY_H_
 
-#include"lib/DBoW2/DBoW2/FORB.h"
-#include"lib/DBoW2/DBoW2/TemplatedVocabulary.h"
+#include"DBoW2/DBoW2/FORB.h"
+#include"DBoW2/DBoW2/TemplatedVocabulary.h"
 
 namespace ORB_SLAM2
 {

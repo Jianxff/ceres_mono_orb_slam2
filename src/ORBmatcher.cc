@@ -26,7 +26,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d/features2d.hpp>
 
-#include "lib/DBoW2/DBoW2/FeatureVector.h"
+#include "DBoW2/DBoW2/FeatureVector.h"
 
 using namespace std;
 

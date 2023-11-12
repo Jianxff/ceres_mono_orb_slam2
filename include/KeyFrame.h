@@ -29,8 +29,8 @@
 #include "MapPoint.h"
 #include "ORBVocabulary.h"
 #include "ORBextractor.h"
-#include "lib/DBoW2/DBoW2/BowVector.h"
-#include "lib/DBoW2/DBoW2/FeatureVector.h"
+#include "DBoW2/DBoW2/BowVector.h"
+#include "DBoW2/DBoW2/FeatureVector.h"
 
 namespace ORB_SLAM2 {
 class Map;

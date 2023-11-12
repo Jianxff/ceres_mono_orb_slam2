@@ -39,8 +39,8 @@
 #include "MapPoint.h"
 #include "ORBVocabulary.h"
 #include "ORBextractor.h"
-#include "lib/DBoW2/DBoW2/BowVector.h"
-#include "lib/DBoW2/DBoW2/FeatureVector.h"
+#include "DBoW2/DBoW2/BowVector.h"
+#include "DBoW2/DBoW2/FeatureVector.h"
 
 #define FRAME_GRID_ROWS 48
 #define FRAME_GRID_COLS 64

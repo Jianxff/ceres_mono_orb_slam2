@@ -33,7 +33,7 @@
 
 #include "FrameDrawer.h"
 #include "MapDrawer.h"
-#include "MonoORBSlam.h"
+#include "System.h"
 #include "Tracking.h"
 
 #include <mutex>
@@ -43,11 +43,11 @@ namespace ORB_SLAM2 {
 class Tracking;
 class FrameDrawer;
 class MapDrawer;
-class MonoORBSlam;
+class System;
 
 class Viewer {
  public:
-  Viewer(MonoORBSlam* mono_orb_slam, FrameDrawer* frame_drawer, MapDrawer* map_drawer,
+  Viewer(System* system, FrameDrawer* frame_drawer, MapDrawer* map_drawer,
          Tracking* tracker, const string& string_setting_file);
 
   // Main thread function. Draw points, keyframes, the current camera pose and
@@ -70,7 +70,7 @@ class Viewer {
  private:
   bool Stop();
 
-  MonoORBSlam* mono_orb_slam_;
+  System* system_;
   FrameDrawer* frame_drawer_;
   MapDrawer* map_drawer_;
   Tracking* tracker_;

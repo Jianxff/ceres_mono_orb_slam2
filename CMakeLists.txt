@@ -1,34 +1,28 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ceres_mono_orb_slam2)
 
-## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
-
 #########################################################################
-if (NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE "Release")
-  message(STATUS "No build type selected, default to ${CMAKE_BUILD_TYPE}")
-endif()
+set(CMAKE_CXX_STANDARD 17)
 
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -fPIC -march=native")
-else(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -fPIC")
-endif(CMAKE_BUILD_TYPE STREQUAL "Release")
+set(CMAKE_BUILD_TYPE "Release")
 #########################################################################
 
-#find_package(catkin REQUIRED)
-find_package(OpenCV REQUIRED)
-find_package(Eigen3 REQUIRED)
-find_package(Pangolin REQUIRED)
+
+# OpenCV
+find_package(OpenCV 3 REQUIRED)
+# Eigen3
+find_package(Eigen3 REQUIRED NO_MODULE)
+# glog
+find_package(glog REQUIRED)
+# Ceres
 find_package(Ceres REQUIRED)
+# Sophus
 find_package(Sophus REQUIRED)
-#find_package(OpenMP REQUIRED)
+# Pangolin
+find_package(Pangolin REQUIRED)
+# Protobuf
+find_package(Protobuf REQUIRED)
 
-#catkin_package(
-#  INCLUDE_DIRS include
-#  #CATKIN_DEPENDS
-#)
 
 ###########
 ## Build ##
@@ -37,16 +31,12 @@ find_package(Sophus REQUIRED)
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-  include
-  ${PROJECT_SOURCE_DIR}
-  #${catkin_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIR}
-  ${Pangolin_INCLUDE_DIRS}
-  ${Sophus_INCLUDE_DIRS}
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/Thirdparty
 )
 
 add_library(${PROJECT_NAME} SHARED
-  src/MonoORBSlam.cc
+  src/System.cc
   src/Tracking.cc
   src/LocalMapping.cc
   src/LoopClosing.cc
@@ -65,24 +55,40 @@ add_library(${PROJECT_NAME} SHARED
   src/Initializer.cc
   src/Viewer.cc
   src/MatEigenConverter.cc
+  src/Osmap.cc
+  src/osmap.pb.cc
 )
 
-target_link_libraries(${PROJECT_NAME} PUBLIC
-  #OpenMP::OpenMP_CXX
-  #${catkin_LIBRARIES}
-  ${OpenCV_LIBS}
-  ${EIGEN3_LIBS}
-  ${Pangolin_LIBRARIES}
-  ${CERES_LIBRARIES}
-  ${PROJECT_SOURCE_DIR}/lib/DBoW2/lib/libDBoW2.so
-  glog
-  gflags
+target_include_directories(${PROJECT_NAME}
+  PUBLIC
+    ${PROJECT_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/Thirdparty
 )
 
-add_executable(mono_slam
-  src/main.cc
+target_link_libraries(${PROJECT_NAME} 
+  PUBLIC
+    Eigen3::Eigen
+    Sophus::Sophus
+    glog
+    ${Pangolin_LIBRARIES}
+    ${OpenCV_LIBS}
+    ${PROTOBUF_LIBRARIES}
+  PRIVATE
+    Ceres::ceres
+    ${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
+    
 )
 
-target_link_libraries(mono_slam
-  ${PROJECT_NAME}  
+add_executable(mono_euroc
+  example/mono_euroc.cc
+)
+
+target_include_directories(mono_euroc
+  PUBLIC
+    ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(mono_euroc
+  PUBLIC
+    ${PROJECT_NAME}
 )

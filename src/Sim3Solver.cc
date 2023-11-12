@@ -40,7 +40,7 @@
 #include "MatEigenConverter.h"
 #include "ORBmatcher.h"
 
-#include "lib/DBoW2/DUtils/Random.h"
+#include "DBoW2/DUtils/Random.h"
 
 namespace ORB_SLAM2 {
 

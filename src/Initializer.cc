@@ -30,7 +30,7 @@
 
 #include "Initializer.h"
 
-#include "lib/DBoW2/DUtils/Random.h"
+#include "DBoW2/DUtils/Random.h"
 
 #include "MatEigenConverter.h"
 #include "ORBmatcher.h"
@@ -849,7 +849,10 @@ int Initializer::CheckRT(const Eigen::Matrix3d& R, const Eigen::Vector3d& t,
     vP3D[matches[i].first] = Eigen::Vector3d(p3dC1(0), p3dC1(1), p3dC1(2));
     nGood++;
 
-    if (cosParallax < 0.99998) vbGood[matches[i].first] = true;
+    if (cosParallax < 0.99998){
+      vbGood[matches[i].first] = true;
+      nGood++;
+    }
   }
 
   if (nGood > 0) {

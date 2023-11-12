@@ -24,7 +24,7 @@
 
 #include "KeyFrame.h"
 #include "ORBVocabulary.h"
-#include "lib/DBoW2/DBoW2/BowVector.h"
+#include "DBoW2/DBoW2/BowVector.h"
 
 
 namespace ORB_SLAM2 {

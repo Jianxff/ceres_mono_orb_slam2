@@ -33,7 +33,7 @@
 #include "LoopClosing.h"
 #include "Map.h"
 #include "MapDrawer.h"
-#include "MonoORBSlam.h"
+#include "System.h"
 #include "ORBVocabulary.h"
 #include "ORBextractor.h"
 #include "Viewer.h"
@@ -45,11 +45,11 @@ class FrameDrawer;
 class Map;
 class LocalMapping;
 class LoopClosing;
-class MonoORBSlam;
+class System;
 
 class Tracking {
  public:
-  Tracking(MonoORBSlam* mono_orb_slam, ORBVocabulary* vocabulary,
+  Tracking(System* system, ORBVocabulary* vocabulary,
            FrameDrawer* frame_drawer, MapDrawer* map_drawer, Map* map,
            KeyFrameDatabase* keyframe_database,
            const string& string_setting_file);
@@ -162,8 +162,8 @@ class Tracking {
   std::vector<KeyFrame*> local_keyframes_;
   std::vector<MapPoint*> local_map_points_;
 
-  // MonoORBSlam
-  MonoORBSlam* mono_orb_slam_;
+  // System
+  System* system_;
 
   // Drawers
   Viewer* viewer_;
