@@ -111,9 +111,6 @@ class Tracking {
   // Main tracking function. It is independent of the input sensor.
   void Track();
 
-  // Map initialization for stereo and RGB-D
-  void StereoInitialization();
-
   // Map initialization for monocular
   void MonocularInitialization();
   void CreateInitialMapMonocular();
