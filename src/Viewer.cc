@@ -36,18 +36,22 @@
 
 namespace ORB_SLAM2 {
 
-Viewer::Viewer(System* system, FrameDrawer* frame_drawer,
-               MapDrawer* map_drawer, Tracking* tracker,
-               const string& string_setting_file)
-    : system_(system),
-      frame_drawer_(frame_drawer),
-      map_drawer_(map_drawer),
-      tracker_(tracker),
-      is_finish_requested_(false),
-      is_finished_(true),
-      is_follow_(false),
-      is_stopped_(true),
-      is_stop_requested_(false) {
+Viewer::Viewer(System* system, const string& string_setting_file) 
+  : system_(system),
+    is_finish_requested_(false),
+    is_finished_(true),
+    is_follow_(true),
+    is_stopped_(true),
+    is_stop_requested_(false)
+{
+  frame_drawer_ = new FrameDrawer(system_->map_);
+  map_drawer_ = new MapDrawer(system_->map_, string_setting_file);
+  tracker_ = system_->tracker_;
+  
+  tracker_->SetViewer(this);
+  tracker_->SetFrameDrawer(frame_drawer_);
+  tracker_->SetMapDrawer(map_drawer_);
+
   cv::FileStorage fSettings(string_setting_file, cv::FileStorage::READ);
   float fps = fSettings["Camera.fps"];
 
@@ -65,13 +69,46 @@ Viewer::Viewer(System* system, FrameDrawer* frame_drawer,
   view_point_y_ = fSettings["Viewer.ViewpointY"];
   view_point_z_ = fSettings["Viewer.ViewpointZ"];
   view_point_f_ = fSettings["Viewer.ViewpointF"];
+
+  std::cout << "Viewer created" << std::endl;
 }
+
+// Viewer::Viewer(System* system, FrameDrawer* frame_drawer,
+//                MapDrawer* map_drawer, Tracking* tracker,
+//                const string& string_setting_file)
+//     : system_(system),
+//       frame_drawer_(frame_drawer),
+//       map_drawer_(map_drawer),
+//       tracker_(tracker),
+//       is_finish_requested_(false),
+//       is_finished_(true),
+//       is_follow_(true),
+//       is_stopped_(true),
+//       is_stop_requested_(false) {
+//   cv::FileStorage fSettings(string_setting_file, cv::FileStorage::READ);
+//   float fps = fSettings["Camera.fps"];
+
+//   if (fps < 1) fps = 30;
+//   T_ = 1e3 / fps;
+
+//   img_width_ = fSettings["Camera.width"];
+//   img_height_ = fSettings["Camera.height"];
+//   if (img_width_ < 1 || img_height_ < 1) {
+//     img_width_ = 640;
+//     img_height_ = 480;
+//   }
+
+//   view_point_x_ = fSettings["Viewer.ViewpointX"];
+//   view_point_y_ = fSettings["Viewer.ViewpointY"];
+//   view_point_z_ = fSettings["Viewer.ViewpointZ"];
+//   view_point_f_ = fSettings["Viewer.ViewpointF"];
+// }
 
 void Viewer::Run() {
   is_finished_ = false;
   is_stopped_ = false;
 
-  pangolin::CreateWindowAndBind("ORB-SLAM2: Map Viewer", 1024, 768);
+  pangolin::CreateWindowAndBind("Map Viewer", 1024, 768);
 
   // 3D Mouse handler requires depth testing to be enabled
   glEnable(GL_DEPTH_TEST);
@@ -82,7 +119,7 @@ void Viewer::Run() {
 
   pangolin::CreatePanel("menu").SetBounds(0.0, 1.0, 0.0,
                                           pangolin::Attach::Pix(175));
-  pangolin::Var<bool> menuFollowCamera("menu.Follow Camera", false, true);
+  pangolin::Var<bool> menuFollowCamera("menu.Follow Camera", true, true);
   pangolin::Var<bool> menuShowPoints("menu.Show Points", true, true);
   pangolin::Var<bool> menuShowKeyFrames("menu.Show KeyFrames", true, true);
   pangolin::Var<bool> menuShowGraph("menu.Show Graph", true, true);
@@ -173,6 +210,9 @@ void Viewer::Run() {
       break;
     }
   }
+
+  cv::destroyAllWindows();
+  pangolin::DestroyWindow("Map Viewer");
 
   SetFinish();
 }

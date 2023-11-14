@@ -18,12 +18,64 @@
 
 namespace ORB_SLAM2 {
 
-System::System(const string& voc_file,
-                         const string& string_setting_file,
-                         const bool is_use_viewer)
-    : do_reset_(false),
-      is_activate_localization_mode_(false),
-      is_deactivate_localization_mode_(false) {
+System::System(const std::string& voc_file, const int imwidth, const int imheight)
+  : do_reset_(false),
+    is_activate_localization_mode_(false),
+    is_deactivate_localization_mode_(false) 
+{
+  // Load ORB Vocabulary
+  std::cout << std::endl
+            << "Loading ORB Vocabulary. This could take a while..."
+            << std::endl;
+
+  vocabulary_ = new ORBVocabulary();
+  // bool voc_loaded = vocabulary_->loadFromTextFile(voc_file);
+  bool voc_loaded = vocabulary_->loadFromBinaryFile(voc_file);
+  if (!voc_loaded) {
+    LOG(ERROR) << "Wrong path to vocabulary.";
+    LOG(FATAL) << "Failed to open at: " << voc_file;
+  }
+
+  LOG(INFO) << "Vocabulary loaded!";
+
+  // Create KeyFrame Database
+  keyframe_database_ = new KeyFrameDatabase(*vocabulary_);
+
+  // Create the Map
+  map_ = new Map();
+
+  // Initialize the Tracking thread
+  //(it will live in the main thread of execution, the one that called this
+  // constructor)
+  tracker_ = new Tracking(this, vocabulary_, map_, keyframe_database_, imwidth, imheight);
+
+  // Initialize the Local Mapping thread and launch
+  local_mapper_ = new LocalMapping(map_, true);
+  thread_local_mapping_ = new thread(&ORB_SLAM2::LocalMapping::Run, local_mapper_);
+
+  // Initialize the Loop Closing thread and launch
+  loop_closer_ = new LoopClosing(map_, keyframe_database_, vocabulary_, false);
+  thread_loop_closing_ = new thread(&ORB_SLAM2::LoopClosing::Run, loop_closer_);
+
+  // Set pointers between threads
+  tracker_->SetLocalMapper(local_mapper_);
+  tracker_->SetLoopClosing(loop_closer_);
+
+  local_mapper_->SetTracker(tracker_);
+  local_mapper_->SetLoopCloser(loop_closer_);
+
+  loop_closer_->SetTracker(tracker_);
+  loop_closer_->SetLocalMapper(local_mapper_);
+
+  Twc_ = Eigen::Matrix4d::Identity();
+}
+
+
+System::System(const string& voc_file, const string& string_setting_file)
+  : do_reset_(false),
+    is_activate_localization_mode_(false),
+    is_deactivate_localization_mode_(false) 
+{
   std::cout
       << std::endl
       << "ORB-SLAM2 Copyright (C) 2014-2016 Raul Mur-Artal, University of "
@@ -65,15 +117,10 @@ System::System(const string& voc_file,
   // Create the Map
   map_ = new Map();
 
-  // Create Drawers. These are used by the Viewer
-  frame_drawer_ = new FrameDrawer(map_);
-  map_drawer_ = new MapDrawer(map_, string_setting_file);
-
   // Initialize the Tracking thread
   //(it will live in the main thread of execution, the one that called this
   // constructor)
-  tracker_ = new Tracking(this, vocabulary_, frame_drawer_, map_drawer_, map_,
-                          keyframe_database_, string_setting_file);
+  tracker_ = new Tracking(this, vocabulary_, map_, keyframe_database_, string_setting_file);
 
   // Initialize the Local Mapping thread and launch
   local_mapper_ = new LocalMapping(map_, true);
@@ -84,12 +131,6 @@ System::System(const string& voc_file,
   loop_closer_ = new LoopClosing(map_, keyframe_database_, vocabulary_, false);
   thread_loop_closing_ = new thread(&ORB_SLAM2::LoopClosing::Run, loop_closer_);
 
-  // Initialize the Viewer thread and launch
-  viewer_ = new Viewer(this, frame_drawer_, map_drawer_, tracker_,
-                       string_setting_file);
-  thread_viewer_ = new thread(&Viewer::Run, viewer_);
-  tracker_->SetViewer(viewer_);
-
   // Set pointers between threads
   tracker_->SetLocalMapper(local_mapper_);
   tracker_->SetLoopClosing(loop_closer_);
@@ -99,6 +140,8 @@ System::System(const string& voc_file,
 
   loop_closer_->SetTracker(tracker_);
   loop_closer_->SetLocalMapper(local_mapper_);
+
+  Twc_ = Eigen::Matrix4d::Identity();
 }
 
 Eigen::Matrix4d System::TrackMonocular(const cv::Mat& img,
@@ -126,6 +169,7 @@ Eigen::Matrix4d System::TrackMonocular(const cv::Mat& img,
   {
     unique_lock<mutex> lock(mutex_reset_);
     if (do_reset_) {
+      Twc_ = Eigen::Matrix4d::Identity();
       tracker_->Reset();
       do_reset_ = false;
     }
@@ -137,8 +181,18 @@ Eigen::Matrix4d System::TrackMonocular(const cv::Mat& img,
   tracking_state_ = tracker_->state_;
   tracked_map_points_ = tracker_->current_frame_.map_points_;
   tracked_undistort_keypoints_ = tracker_->current_frame_.undistort_keypoints_;
+  
+  {
+    std::lock_guard<mutex> lock(mutex_pose_);
+    Twc_ = Tcw.inverse();
+  }
 
   return Tcw;
+}
+
+Eigen::Matrix4d System::GetTwc() {
+  std::lock_guard<mutex> lock(mutex_pose_);
+  return Twc_;
 }
 
 void System::ActivateLocalizationMode() {
@@ -170,21 +224,10 @@ void System::Reset() {
 void System::Shutdown() {
   local_mapper_->RequestFinish();
   loop_closer_->RequestFinish();
-  if (viewer_) {
-    viewer_->RequestFinish();
-    while (!viewer_->isFinished()) {
-      usleep(5000);
-    }
-  }
-  // Wait until all thread have effectively stopped
-  while (!local_mapper_->isFinished() || !loop_closer_->isFinished() ||
-         loop_closer_->isRunningGBA()) {
-    usleep(5000);
-  }
 
-  if (viewer_) {
-    pangolin::BindToContext("ORB-SLAM2: Map Viewer");
-  }
+  // Wait until all thread have effectively stopped
+  thread_local_mapping_->join();
+  thread_loop_closing_->join();
 }
 
 void System::SaveTrajectoryTUM(const string& filename) {

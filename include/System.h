@@ -41,10 +41,14 @@ class LoopClosing;
 
 class System {
  public:
-  System(const string& voc_file, const string& string_setting_file,
-              const bool is_use_viewer = true);
+  System(const string& voc_file, const string& string_setting_file);
+
+  System(const std::string& voc_file, const int imwidth, const int imheight);
 
   Eigen::Matrix4d TrackMonocular(const cv::Mat& img, const double& timestamp);
+
+  // Get Twc Matrix
+  Eigen::Matrix4d GetTwc();
 
   // This stops local mapping thread (map building) and performs only camera
   // tracking.
@@ -107,18 +111,11 @@ class System {
   // (in a new thread) afterwards.
   LoopClosing* loop_closer_;
 
-  // The viewer draws the map and the current camera pose. It uses Pangolin.
-  Viewer* viewer_;
-
-  FrameDrawer* frame_drawer_;
-  MapDrawer* map_drawer_;
-
   // System threads: Local Mapping, Loop Closing, Viewer.
   // The Tracking thread "lives" in the main execution thread that creates the
   // System object.
   std::thread* thread_local_mapping_;
   std::thread* thread_loop_closing_;
-  std::thread* thread_viewer_;
 
   // Reset flag
   std::mutex mutex_reset_;
@@ -134,6 +131,9 @@ class System {
   std::vector<MapPoint*> tracked_map_points_;
   std::vector<cv::KeyPoint> tracked_undistort_keypoints_;
   std::mutex mutex_state_;
+
+  Eigen::Matrix4d Twc_;
+  std::mutex mutex_pose_;
 };
 
 }  // namespace ORB_SLAM2

@@ -1,41 +1,35 @@
-cmake_minimum_required(VERSION 2.8.3)
-project(ceres_mono_orb_slam2)
+cmake_minimum_required(VERSION 3.0)
+project(orbslam2)
 
-#########################################################################
+##########################
+# cmake flags
+##########################
 set(CMAKE_CXX_STANDARD 17)
-
 set(CMAKE_BUILD_TYPE "Release")
-#########################################################################
 
 
-# OpenCV
+##########################
+# find package
+##########################
 find_package(OpenCV 3 REQUIRED)
-# Eigen3
 find_package(Eigen3 REQUIRED NO_MODULE)
-# glog
 find_package(glog REQUIRED)
-# Ceres
 find_package(Ceres REQUIRED)
-# Sophus
 find_package(Sophus REQUIRED)
-# Pangolin
 find_package(Pangolin REQUIRED)
-# Protobuf
 find_package(Protobuf REQUIRED)
 
 
-###########
-## Build ##
-###########
+##########################
+# pybind11
+##########################
+add_subdirectory(${PROJECT_SOURCE_DIR}/Thirdparty/pybind11)
 
-## Specify additional locations of header files
-## Your package locations should be listed before other locations
-include_directories(
-  ${PROJECT_SOURCE_DIR}/include
-  ${PROJECT_SOURCE_DIR}/Thirdparty
-)
 
-add_library(${PROJECT_NAME} SHARED
+##########################
+# build pybind module
+##########################
+pybind11_add_module(${PROJECT_NAME}
   src/System.cc
   src/Tracking.cc
   src/LocalMapping.cc
@@ -57,12 +51,15 @@ add_library(${PROJECT_NAME} SHARED
   src/MatEigenConverter.cc
   src/Osmap.cc
   src/osmap.pb.cc
+  src/Wrapper.cc
 )
 
 target_include_directories(${PROJECT_NAME}
   PUBLIC
-    ${PROJECT_SOURCE_DIR}/include
-    ${PROJECT_SOURCE_DIR}/Thirdparty
+    ${PROJECT_SOURCE_DIR}/include/
+    ${PROJECT_SOURCE_DIR}/Thirdparty/
+    ${PROJECT_SOURCE_DIR}/Thirdparty/pybind11/include/
+    /usr/include/python3.8/
 )
 
 target_link_libraries(${PROJECT_NAME} 
@@ -70,25 +67,10 @@ target_link_libraries(${PROJECT_NAME}
     Eigen3::Eigen
     Sophus::Sophus
     glog
+  PRIVATE
+    Ceres::ceres
     ${Pangolin_LIBRARIES}
     ${OpenCV_LIBS}
     ${PROTOBUF_LIBRARIES}
-  PRIVATE
-    Ceres::ceres
     ${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
-    
-)
-
-add_executable(mono_euroc
-  example/mono_euroc.cc
-)
-
-target_include_directories(mono_euroc
-  PUBLIC
-    ${PROJECT_SOURCE_DIR}/include
-)
-
-target_link_libraries(mono_euroc
-  PUBLIC
-    ${PROJECT_NAME}
 )

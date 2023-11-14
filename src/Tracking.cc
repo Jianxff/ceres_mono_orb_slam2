@@ -47,8 +47,7 @@
 
 namespace ORB_SLAM2 {
 
-Tracking::Tracking(System* system, ORBVocabulary* vocabulary,
-                   FrameDrawer* frame_drawer, MapDrawer* map_drawer, Map* map,
+Tracking::Tracking(System* system, ORBVocabulary* vocabulary, Map* map,
                    KeyFrameDatabase* keyframe_database,
                    const string& string_setting_file)
     : state_(NO_IMAGES_YET),
@@ -59,8 +58,8 @@ Tracking::Tracking(System* system, ORBVocabulary* vocabulary,
       initializer_(static_cast<Initializer*>(nullptr)),
       system_(system),
       viewer_(nullptr),
-      frame_drawer_(frame_drawer),
-      map_drawer_(map_drawer),
+      frame_drawer_(nullptr),
+      map_drawer_(nullptr),
       map_(map),
       last_reloc_frame_id_(0) {
   cv::FileStorage fSettings(string_setting_file, cv::FileStorage::READ);
@@ -141,6 +140,101 @@ Tracking::Tracking(System* system, ORBVocabulary* vocabulary,
   std::cout << "- Minimum Fast Threshold: " << min_th_FAST << std::endl;
 }
 
+
+Tracking::Tracking(System* system, ORBVocabulary* vocabulary, Map* map, KeyFrameDatabase* keyframe_database,
+            const int imwidth, const int imheight)
+  : state_(NO_IMAGES_YET),
+    do_only_tracking_(false),
+    do_vo_(false),
+    orb_vocabulary_(vocabulary),
+    keyframe_database_(keyframe_database),
+    initializer_(static_cast<Initializer*>(nullptr)),
+    system_(system),
+    viewer_(nullptr),
+    frame_drawer_(nullptr),
+    map_drawer_(nullptr),
+    map_(map),
+    last_reloc_frame_id_(0)
+{
+  // Set camera parameters fast 
+  float fx = imheight > imwidth ? imwidth : imheight;
+  float fy = imheight > imwidth ? imwidth : imheight;
+  float cx = (float) imwidth * 0.5;
+  float cy = (float) imheight * 0.5;
+
+  cv::Mat K = cv::Mat::eye(3, 3, CV_32F);
+  K.at<float>(0, 0) = fx;
+  K.at<float>(1, 1) = fy;
+  K.at<float>(0, 2) = cx;
+  K.at<float>(1, 2) = cy;
+  K.copyTo(K_);
+
+  cv::Mat DistCoef(4, 1, CV_32F);
+  DistCoef.at<float>(0) = 0;
+  DistCoef.at<float>(1) = 0;
+  DistCoef.at<float>(2) = 0;
+  DistCoef.at<float>(3) = 0;
+  const float k3 = 0;
+  if (k3 != 0) {
+    DistCoef.resize(5);
+    DistCoef.at<float>(4) = k3;
+  }
+  DistCoef.copyTo(dist_coef_);
+
+  bf_ = 0;
+
+  float fps = 30;
+
+  // Max/Min Frames to insert keyframes and to check relocalisation
+  min_frames_ = 0;
+  max_frames_ = fps;
+
+  std::cout << std::endl << "Camera Parameters: " << std::endl;
+  std::cout << "- fx: " << fx << std::endl;
+  std::cout << "- fy: " << fy << std::endl;
+  std::cout << "- cx: " << cx << std::endl;
+  std::cout << "- cy: " << cy << std::endl;
+  std::cout << "- k1: " << DistCoef.at<float>(0) << std::endl;
+  std::cout << "- k2: " << DistCoef.at<float>(1) << std::endl;
+  if (DistCoef.rows == 5)
+    std::cout << "- k3: " << DistCoef.at<float>(4) << std::endl;
+  std::cout << "- p1: " << DistCoef.at<float>(2) << std::endl;
+  std::cout << "- p2: " << DistCoef.at<float>(3) << std::endl;
+  std::cout << "- fps: " << fps << std::endl;
+
+  int nRGB = 0;
+  is_rgb_ = nRGB;
+
+  if (is_rgb_)
+    std::cout << "- color order: RGB (ignored if grayscale)" << std::endl;
+  else
+    std::cout << "- color order: BGR (ignored if grayscale)" << std::endl;
+
+  // Load ORB parameters
+
+  int n_features = 2000;
+  float scale_factor = 1.2;
+  int n_levels = 5;
+  int init_th_FAST = 20;
+  int min_th_FAST = 7;
+
+  orb_extractor_left_ = new ORBextractor(n_features, scale_factor, n_levels,
+                                         init_th_FAST, min_th_FAST);
+
+  init_orb_extractor_ = new ORBextractor(2 * n_features, scale_factor, n_levels,
+                                         init_th_FAST, min_th_FAST);
+
+  std::cout << std::endl << "ORB Extractor Parameters: " << std::endl;
+  std::cout << "- Number of Features: " << n_features << std::endl;
+  std::cout << "- Scale Levels: " << n_levels << std::endl;
+  std::cout << "- Scale Factor: " << scale_factor << std::endl;
+  std::cout << "- Initial Fast Threshold: " << init_th_FAST << std::endl;
+  std::cout << "- Minimum Fast Threshold: " << min_th_FAST << std::endl;
+
+
+}
+
+
 void Tracking::SetLocalMapper(LocalMapping* local_mapper) {
   local_mapper_ = local_mapper;
 }
@@ -150,6 +244,8 @@ void Tracking::SetLoopClosing(LoopClosing* loop_closing) {
 }
 
 void Tracking::SetViewer(Viewer* viewer) { viewer_ = viewer; }
+void Tracking::SetFrameDrawer(FrameDrawer* frame_drawer) { frame_drawer_ = frame_drawer; }
+void Tracking::SetMapDrawer(MapDrawer* map_drawer) { map_drawer_ = map_drawer; }
 
 Eigen::Matrix4d Tracking::GrabImageMonocular(const cv::Mat& img,
                                              const double& timestamp) {
@@ -273,11 +369,13 @@ void Tracking::Track() {
 
   if (state_ == NOT_INITIALIZED) {
     MonocularInitialization();
-    frame_drawer_->Update(this);
+    if(frame_drawer_)
+      frame_drawer_->Update(this);
     if (state_ != OK) {
       return;
     }
-    viewer_->SetFollowCamera();
+    if(viewer_)
+      viewer_->SetFollowCamera();
   } else {
     // System is initialized. Track Frame.
     bool is_OK;
@@ -306,7 +404,8 @@ void Tracking::Track() {
     state_ = is_OK ? OK : LOST;
 
     // Update drawer
-    frame_drawer_->Update(this);
+    if(frame_drawer_)
+      frame_drawer_->Update(this);
 
     // If tracking were good, check if we insert a keyframe
     if (is_OK) {
@@ -320,7 +419,8 @@ void Tracking::Track() {
         velocity_ = Eigen::Matrix4d::Identity();
       }
 
-      map_drawer_->SetCurrentCameraPose(current_frame_.Tcw_);
+      if(map_drawer_)
+        map_drawer_->SetCurrentCameraPose(current_frame_.Tcw_);
 
       // Clean VO matches
       for (int i = 0; i < current_frame_.N_; i++) {
@@ -543,7 +643,8 @@ void Tracking::CreateInitialMapMonocular() {
 
   map_->SetReferenceMapPoints(local_map_points_);
 
-  map_drawer_->SetCurrentCameraPose(current_keyframe->GetPose());
+  if(map_drawer_)
+    map_drawer_->SetCurrentCameraPose(current_keyframe->GetPose());
 
   map_->keyframe_origins_.push_back(init_keyframe);
 

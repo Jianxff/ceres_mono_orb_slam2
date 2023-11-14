@@ -47,8 +47,7 @@ class System;
 
 class Viewer {
  public:
-  Viewer(System* system, FrameDrawer* frame_drawer, MapDrawer* map_drawer,
-         Tracking* tracker, const string& string_setting_file);
+  Viewer(System* system, const string& string_setting_file);
 
   // Main thread function. Draw points, keyframes, the current camera pose and
   // the last processed frame. Drawing is refreshed according to the camera fps.

@@ -49,10 +49,12 @@ class System;
 
 class Tracking {
  public:
-  Tracking(System* system, ORBVocabulary* vocabulary,
-           FrameDrawer* frame_drawer, MapDrawer* map_drawer, Map* map,
+  Tracking(System* system, ORBVocabulary* vocabulary, Map* map,
            KeyFrameDatabase* keyframe_database,
            const string& string_setting_file);
+  
+  Tracking(System* system, ORBVocabulary* vocabulary, Map* map, KeyFrameDatabase* keyframe_database,
+            const int imwidth, const int imheight);
 
   // Preprocess the input and call Track(). Extract features and performs
   Eigen::Matrix4d GrabImageMonocular(const cv::Mat& img, const double& timestamp);
@@ -60,6 +62,8 @@ class Tracking {
   void SetLocalMapper(LocalMapping* local_mapper);
   void SetLoopClosing(LoopClosing* loop_closing);
   void SetViewer(Viewer* viewer);
+  void SetFrameDrawer(FrameDrawer* frame_drawer);
+  void SetMapDrawer(MapDrawer* map_drawer);
 
   // Use this function if you have deactivated local mapping and you only want
   // to localize the camera.
