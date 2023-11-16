@@ -38,6 +38,15 @@ MapDrawer::MapDrawer(Map* pMap, const string& strSettingPath) : mpMap(pMap) {
   mCameraLineWidth = fSettings["Viewer.CameraLineWidth"];
 }
 
+MapDrawer::MapDrawer(Map* pMap) : mpMap(pMap) {
+  mKeyFrameSize = 0.05;
+  mKeyFrameLineWidth = 1;
+  mGraphLineWidth = 0.5;
+  mPointSize = 2;
+  mCameraSize = 0.08;
+  mCameraLineWidth = 3;
+}
+
 void MapDrawer::DrawMapPoints() {
   const vector<MapPoint*>& vpMPs = mpMap->GetAllMapPoints();
   const vector<MapPoint*>& vpRefMPs = mpMap->GetReferenceMapPoints();

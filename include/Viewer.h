@@ -48,26 +48,18 @@ class System;
 class Viewer {
  public:
   Viewer(System* system, const string& string_setting_file);
+  Viewer(System* system);
 
   // Main thread function. Draw points, keyframes, the current camera pose and
   // the last processed frame. Drawing is refreshed according to the camera fps.
   // We use Pangolin.
   void Run();
 
-  void RequestFinish();
+  cv::Mat GetFrame();
 
-  void RequestStop();
-
-  bool isFinished();
-
-  bool isStopped();
-
-  void SetFollowCamera();
-
-  void Release();
+  bool exit_required_;
 
  private:
-  bool Stop();
 
   System* system_;
   FrameDrawer* frame_drawer_;
@@ -80,16 +72,8 @@ class Viewer {
 
   float view_point_x_, view_point_y_, view_point_z_, view_point_f_;
 
-  bool CheckFinish();
-  void SetFinish();
-  bool is_finish_requested_;
-  bool is_finished_;
-  bool is_follow_;
-  std::mutex mutex_finish_;
-
-  bool is_stopped_;
-  bool is_stop_requested_;
-  std::mutex mutex_stop_;
+  cv::Mat frame_map_;
+  std::mutex mutex_frame_;
 };
 
 }  // namespace ORB_SLAM2

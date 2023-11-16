@@ -35,6 +35,7 @@ class MapDrawer
 {
 public:
     MapDrawer(Map* pMap, const string &strSettingPath);
+    MapDrawer(Map* pMap);
 
     Map* mpMap;
 

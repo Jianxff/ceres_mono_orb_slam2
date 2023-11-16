@@ -176,16 +176,15 @@ Eigen::Matrix4d System::TrackMonocular(const cv::Mat& img,
   }
 
   Eigen::Matrix4d Tcw = tracker_->GrabImageMonocular(img, timestamp);
+  {
+    std::lock_guard<mutex> lock(mutex_pose_);
+    Twc_ = Tcw.inverse();
+  }
 
   unique_lock<mutex> lock2(mutex_state_);
   tracking_state_ = tracker_->state_;
   tracked_map_points_ = tracker_->current_frame_.map_points_;
   tracked_undistort_keypoints_ = tracker_->current_frame_.undistort_keypoints_;
-  
-  {
-    std::lock_guard<mutex> lock(mutex_pose_);
-    Twc_ = Tcw.inverse();
-  }
 
   return Tcw;
 }

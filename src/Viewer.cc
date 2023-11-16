@@ -38,11 +38,7 @@ namespace ORB_SLAM2 {
 
 Viewer::Viewer(System* system, const string& string_setting_file) 
   : system_(system),
-    is_finish_requested_(false),
-    is_finished_(true),
-    is_follow_(true),
-    is_stopped_(true),
-    is_stop_requested_(false)
+    exit_required_(false)
 {
   frame_drawer_ = new FrameDrawer(system_->map_);
   map_drawer_ = new MapDrawer(system_->map_, string_setting_file);
@@ -69,6 +65,29 @@ Viewer::Viewer(System* system, const string& string_setting_file)
   view_point_y_ = fSettings["Viewer.ViewpointY"];
   view_point_z_ = fSettings["Viewer.ViewpointZ"];
   view_point_f_ = fSettings["Viewer.ViewpointF"];
+
+  std::cout << "Viewer created" << std::endl;
+}
+
+Viewer::Viewer(System* system) : system_(system), exit_required_(false)
+{
+  frame_drawer_ = new FrameDrawer(system_->map_);
+  map_drawer_ = new MapDrawer(system_->map_);
+  tracker_ = system_->tracker_;
+  
+  tracker_->SetViewer(this);
+  tracker_->SetFrameDrawer(frame_drawer_);
+  tracker_->SetMapDrawer(map_drawer_);
+
+  T_ = 1e3 / 30;
+
+  img_width_ = 640;
+  img_height_ = 480;
+
+  view_point_x_ = 0;
+  view_point_y_ = -0.7;
+  view_point_z_ = -1.8;
+  view_point_f_ = 500;
 
   std::cout << "Viewer created" << std::endl;
 }
@@ -105,170 +124,95 @@ Viewer::Viewer(System* system, const string& string_setting_file)
 // }
 
 void Viewer::Run() {
-  is_finished_ = false;
-  is_stopped_ = false;
+  auto mcs = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
+  int64_t msct = mcs.count();
+  // to string
+  std::string mscts = std::to_string(msct);
+  std::string map_title = "map_" + mscts;
+  std::string frame_title = "frame_" + mscts;
 
-  pangolin::CreateWindowAndBind("Map Viewer", 1024, 768);
+  pangolin::CreateWindowAndBind(map_title, 640, 480, pangolin::Params({{"scheme", "headless"}}));
 
   // 3D Mouse handler requires depth testing to be enabled
   glEnable(GL_DEPTH_TEST);
 
-  // Issue specific OpenGl we might need
-  glEnable(GL_BLEND);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-  pangolin::CreatePanel("menu").SetBounds(0.0, 1.0, 0.0,
-                                          pangolin::Attach::Pix(175));
-  pangolin::Var<bool> menuFollowCamera("menu.Follow Camera", true, true);
-  pangolin::Var<bool> menuShowPoints("menu.Show Points", true, true);
-  pangolin::Var<bool> menuShowKeyFrames("menu.Show KeyFrames", true, true);
-  pangolin::Var<bool> menuShowGraph("menu.Show Graph", true, true);
-  pangolin::Var<bool> menuLocalizationMode("menu.Localization Mode", false,
-                                           true);
-  pangolin::Var<bool> menuReset("menu.Reset", false, false);
+  // // Issue specific OpenGl we might need
+  // glEnable(GL_BLEND);
+  // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
   // Define Camera Render Object (for view / scene browsing)
   pangolin::OpenGlRenderState s_cam(
-      pangolin::ProjectionMatrix(1024, 768, view_point_f_, view_point_f_, 512,
-                                 389, 0.1, 1000),
+      pangolin::ProjectionMatrix(640, 480, view_point_f_, view_point_f_, 320,
+                                 250, 0.1, 1000),
       pangolin::ModelViewLookAt(view_point_x_, view_point_y_, view_point_z_, 0,
                                 0, 0, 0.0, -1.0, 0.0));
 
   // Add named OpenGL viewport to window and provide 3D Handler
   pangolin::View& d_cam = pangolin::CreateDisplay()
-                              .SetBounds(0.0, 1.0, pangolin::Attach::Pix(175),
-                                         1.0, -1024.0f / 768.0f)
+                              .SetBounds(0.0, 1.0, 0,
+                                         1.0, -640.0f / 480.0f)
                               .SetHandler(new pangolin::Handler3D(s_cam));
 
   pangolin::OpenGlMatrix Twc;
   Twc.SetIdentity();
 
-  cv::namedWindow("ORB-SLAM2: Current Frame");
+  // create a frame buffer object with colour and depth buffer
+  pangolin::GlTexture color_buffer(640,480);
+  pangolin::GlRenderBuffer depth_buffer(640,480);
+  pangolin::GlFramebuffer fbo_buffer(color_buffer, depth_buffer);
+  fbo_buffer.Bind();
 
-  bool is_localization_mode = false;
-
-  while (true) {
+  while(!exit_required_) 
+  {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+    std::cout << 'n';
     map_drawer_->GetCurrentOpenGLCameraMatrix(Twc);
-
-    if (menuFollowCamera && is_follow_) {
-      s_cam.Follow(Twc);
-    } else if (menuFollowCamera && !is_follow_) {
-      s_cam.SetModelViewMatrix(
+    s_cam.SetModelViewMatrix(
           pangolin::ModelViewLookAt(view_point_x_, view_point_y_, view_point_z_,
                                     0, 0, 0, 0.0, -1.0, 0.0));
-      s_cam.Follow(Twc);
-      is_follow_ = true;
-    } else if (!menuFollowCamera && is_follow_) {
-      is_follow_ = false;
-    }
-
-    if (menuLocalizationMode && !is_localization_mode) {
-      system_->ActivateLocalizationMode();
-      is_localization_mode = true;
-    } else if (!menuLocalizationMode && is_localization_mode) {
-      system_->DeactivateLocalizationMode();
-      is_localization_mode = false;
-    }
+    s_cam.Follow(Twc);
 
     d_cam.Activate(s_cam);
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+
     map_drawer_->DrawCurrentCamera(Twc);
-    if (menuShowKeyFrames || menuShowGraph)
-      map_drawer_->DrawKeyFrames(menuShowKeyFrames, menuShowGraph);
-    if (menuShowPoints) map_drawer_->DrawMapPoints();
+    map_drawer_->DrawKeyFrames(true, true);
+    map_drawer_->DrawMapPoints();
 
     pangolin::FinishFrame();
 
-    cv::Mat img = frame_drawer_->DrawFrame();
-    cv::imshow("ORB-SLAM2: Current Frame", img);
-    cv::waitKey(T_);
+    std::cout << 'r';
 
-    if (menuReset) {
-      menuShowGraph = true;
-      menuShowKeyFrames = true;
-      menuShowPoints = true;
-      menuLocalizationMode = false;
-      if (is_localization_mode) {
-        system_->DeactivateLocalizationMode();
-      }
-      is_localization_mode = false;
-      is_follow_ = true;
-      menuFollowCamera = true;
-      system_->Reset();
-      menuReset = false;
-    }
+    {
+      std::unique_lock<std::mutex> lock(mutex_frame_);
+      glFlush();
+      pangolin::TypedImage buffer = pangolin::ReadFramebuffer(d_cam.v, "RGBA32");
+      cv::Mat matbuf = cv::Mat(buffer.h, buffer.w, CV_8UC4, buffer.ptr);
 
-    if (Stop()) {
-      while (isStopped()) {
-        usleep(3000);
-      }
+      if(!matbuf.empty()) {
+        matbuf.copyTo(frame_map_);
+        cv::cvtColor(frame_map_, frame_map_, CV_BGRA2RGB);
+        cv::flip(frame_map_, frame_map_, 0);
+      } 
     }
+    std::cout << 'f';
+    cv::Mat frame = frame_drawer_->DrawFrame();
+    cv::imshow(frame_title, frame);
+    cv::waitKey(5);
 
-    if (CheckFinish()) {
-      break;
-    }
   }
+
+  fbo_buffer.Unbind();
 
   cv::destroyAllWindows();
-  pangolin::DestroyWindow("Map Viewer");
+  pangolin::DestroyWindow(map_title);
+  pangolin::QuitAll();
 
-  SetFinish();
 }
 
-void Viewer::RequestFinish() {
-  unique_lock<mutex> lock(mutex_finish_);
-  is_finish_requested_ = true;
+cv::Mat Viewer::GetFrame() {
+  unique_lock<mutex> lock(mutex_frame_);
+  return frame_map_;
 }
 
-bool Viewer::CheckFinish() {
-  unique_lock<mutex> lock(mutex_finish_);
-  return is_finish_requested_;
-}
-
-void Viewer::SetFinish() {
-  unique_lock<mutex> lock(mutex_finish_);
-  is_finished_ = true;
-}
-
-bool Viewer::isFinished() {
-  unique_lock<mutex> lock(mutex_finish_);
-  return is_finished_;
-}
-
-void Viewer::RequestStop() {
-  unique_lock<mutex> lock(mutex_stop_);
-  if (!is_stopped_) is_stop_requested_ = true;
-}
-
-bool Viewer::isStopped() {
-  unique_lock<mutex> lock(mutex_stop_);
-  return is_stopped_;
-}
-
-bool Viewer::Stop() {
-  unique_lock<mutex> lock(mutex_stop_);
-  unique_lock<mutex> lock2(mutex_finish_);
-
-  if (is_finish_requested_)
-    return false;
-  else if (is_stop_requested_) {
-    is_stopped_ = true;
-    is_stop_requested_ = false;
-    return true;
-  }
-
-  return false;
-}
-
-void Viewer::SetFollowCamera() {
-  unique_lock<mutex> lock(mutex_stop_);
-  is_follow_ = true;
-}
-
-void Viewer::Release() {
-  unique_lock<mutex> lock(mutex_stop_);
-  is_stopped_ = false;
-}
 }  // namespace ORB_SLAM2

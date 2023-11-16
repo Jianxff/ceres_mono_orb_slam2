@@ -29,6 +29,9 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/Thirdparty/pybind11)
 ##########################
 # build pybind module
 ##########################
+# set output
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/server)
+
 pybind11_add_module(${PROJECT_NAME}
   src/System.cc
   src/Tracking.cc

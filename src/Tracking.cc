@@ -374,8 +374,6 @@ void Tracking::Track() {
     if (state_ != OK) {
       return;
     }
-    if(viewer_)
-      viewer_->SetFollowCamera();
   } else {
     // System is initialized. Track Frame.
     bool is_OK;
@@ -1239,10 +1237,6 @@ bool Tracking::Relocalization() {
 
 void Tracking::Reset() {
   std::cout << "System Reseting" << std::endl;
-  if (viewer_) {
-    viewer_->RequestStop();
-    while (!viewer_->isStopped()) usleep(3000);
-  }
 
   // Reset Local Mapping
   std::cout << "Reseting Local Mapper...";
@@ -1275,8 +1269,6 @@ void Tracking::Reset() {
   reference_keyframes_.clear();
   frame_times_.clear();
   do_lostes_.clear();
-
-  if (viewer_) viewer_->Release();
 }
 
 void Tracking::InformOnlyTracking(const bool& flag) {
