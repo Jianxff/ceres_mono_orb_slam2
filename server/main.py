@@ -37,11 +37,11 @@ class NumpyArrayEncoder(json.JSONEncoder):
 class SlamTrack(MediaStreamTrack):
   kind = 'video'
 
-  def __init__(self, track, session, position_channel):
+  def __init__(self, track, session, channels):
     super().__init__()  # don't forget this!
     self.track = track
     self.session = session
-    self.position_channel = position_channel
+    self.channels = channels
     self.blank = VideoFrame.from_ndarray(np.zeros((480, 640, 3), np.uint8), format='rgb24')
 
   async def recv(self):
@@ -56,8 +56,10 @@ class SlamTrack(MediaStreamTrack):
     if img.size > 0: new_frame = VideoFrame.from_ndarray(img, format='bgr24')
     # push position
     position = self.session.get_position()
+    state = self.session.tracking_state()
     try:
-      self.position_channel.send(json.dumps(position, cls=NumpyArrayEncoder))
+      self.channels['position'].send(json.dumps(position, cls=NumpyArrayEncoder))
+      self.channels['state'].send(json.dumps(state, cls=NumpyArrayEncoder))
     except Exception as e:
       logger.error(str(e))
     # push features
@@ -83,14 +85,17 @@ async def session_handler(request):
   
   # create slam session
   session = orbslam2.Session('../vocabulary/voc.bin', 640, 480, True)
-  session.enable_viewer()
+  session.enable_viewer(off_screen = True)
   if params['mode'] == 'slam_save': 
     session.save_map(True, 'statis/map/test')
   elif params['mode'] == 'tracking': 
     session.load_map(True, 'static/map/test.yaml')
 
-  # create data channel to send position
-  position_channel = pc.createDataChannel('position')
+  # create data channel to send position and state
+  channels = {
+    'position' : pc.createDataChannel('position'),
+    'state' : pc.createDataChannel('state')
+  }
 
   @pc.on('connectionstatechange')
   async def on_connectionstatechange():
@@ -114,7 +119,7 @@ async def session_handler(request):
     log_info('Track %s received', track.kind)
 
     if track.kind == 'video':
-      pc.addTrack(SlamTrack(relay.subscribe(track), session, position_channel))
+      pc.addTrack(SlamTrack(relay.subscribe(track), session, channels))
 
     @track.on('ended')
     async def on_ended():

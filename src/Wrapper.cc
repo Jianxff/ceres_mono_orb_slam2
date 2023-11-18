@@ -133,11 +133,16 @@ public:
   }
 
   // get tracking status
-  int getTrackingState() {
-    if(released_) return -1;
+  py::array_t<size_t> getTrackingState() {
+    size_t data[3] = {0,0,0};
 
-    int state = psystem_->GetTrackingState();
-    return state;
+    if(!released_) {
+      data[0] = psystem_->GetTrackingState();
+      data[1] = psystem_->map_->KeyFramesInMap();
+      data[2] = psystem_->map_->MapPointsInMap();
+    }
+    
+    return py::array_t<size_t>({3}, data);
   }
 
   // get camera twc
@@ -175,9 +180,9 @@ public:
   }
  
   // enable viewer thread
-  void enableViewer() {
+  void enableViewer(bool off_screen = true) {
     pviewer_.reset(new ORB_SLAM2::Viewer(psystem_.get()));
-    viewer_thread_ = std::thread(&ORB_SLAM2::Viewer::Run, pviewer_);
+    viewer_thread_ = std::thread(&ORB_SLAM2::Viewer::Run, pviewer_, off_screen);
     visualize_ = true;
   }
 
@@ -264,7 +269,7 @@ PYBIND11_MODULE(orbslam2, m) {
   py::class_<Session>(m, "Session")
     .def(py::init<const std::string, const std::string, bool>(), py::arg("voc_file"), py::arg("config_file"), py::arg("force_realtime") = false)
     .def(py::init<const std::string, const int, const int, bool>(), py::arg("voc_file"), py::arg("imwidth"), py::arg("imheight"), py::arg("force_realtime") = false)
-    .def("enable_viewer", &Session::enableViewer)
+    .def("enable_viewer", &Session::enableViewer, py::arg("off_screen") = true)
     .def("add_track", &Session::addTrack, py::arg("image"), py::arg("time_ms") = -1)
     .def("tracking_state", &Session::getTrackingState)
     .def("get_position", &Session::getCameraPoseMatrix)

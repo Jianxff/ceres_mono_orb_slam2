@@ -123,7 +123,7 @@ Viewer::Viewer(System* system) : system_(system), exit_required_(false)
 //   view_point_f_ = fSettings["Viewer.ViewpointF"];
 // }
 
-void Viewer::Run() {
+void Viewer::Run(bool off_screen) {
   auto mcs = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
   int64_t msct = mcs.count();
   // to string
@@ -131,14 +131,17 @@ void Viewer::Run() {
   std::string map_title = "map_" + mscts;
   std::string frame_title = "frame_" + mscts;
 
-  pangolin::CreateWindowAndBind(map_title, 640, 480, pangolin::Params({{"scheme", "headless"}}));
+  auto params = off_screen ? pangolin::Params({{"scheme", "headless"}}) : pangolin::Params();
+  pangolin::CreateWindowAndBind(map_title, 640, 480, params);
 
   // 3D Mouse handler requires depth testing to be enabled
   glEnable(GL_DEPTH_TEST);
 
   // // Issue specific OpenGl we might need
-  // glEnable(GL_BLEND);
-  // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  if( !off_screen ){
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  }
 
   // Define Camera Render Object (for view / scene browsing)
   pangolin::OpenGlRenderState s_cam(
@@ -157,10 +160,10 @@ void Viewer::Run() {
   Twc.SetIdentity();
 
   // create a frame buffer object with colour and depth buffer
-  pangolin::GlTexture color_buffer(640,480);
-  pangolin::GlRenderBuffer depth_buffer(640,480);
+  pangolin::GlTexture color_buffer(640 * (int)off_screen, 480 * (int)off_screen);
+  pangolin::GlRenderBuffer depth_buffer(640 * (int)off_screen, 480 * (int)off_screen);
   pangolin::GlFramebuffer fbo_buffer(color_buffer, depth_buffer);
-  fbo_buffer.Bind();
+  if(off_screen) fbo_buffer.Bind();
 
   while(!exit_required_) 
   {
@@ -194,19 +197,21 @@ void Viewer::Run() {
       } 
     }
 
-    cv::Mat frame = frame_drawer_->DrawFrame();
-    cv::imshow(frame_title, frame);
-    cv::waitKey(5);
-
+    if(!off_screen){
+      cv::Mat frame = frame_drawer_->DrawFrame();
+      cv::imshow(frame_title, frame);
+      cv::waitKey(5);
+    }  
   }
 
-  fbo_buffer.Unbind();
+  if(off_screen) fbo_buffer.Unbind();
 
   cv::destroyAllWindows();
   pangolin::DestroyWindow(map_title);
   pangolin::QuitAll();
 
-  std::cout << "Viewer Thread Released" << std::endl;
+  LOG(INFO) << "viewer thread released";
+  
 }
 
 cv::Mat Viewer::GetFrame() {
