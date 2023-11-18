@@ -147,7 +147,7 @@ System::System(const string& voc_file, const string& string_setting_file)
 Eigen::Matrix4d System::TrackMonocular(const cv::Mat& img,
                                             const double& timestamp) {
   {
-    unique_lock<mutex> lock(mutex_mode_);
+    lock_guard<mutex> lock(mutex_mode_);
     if (is_activate_localization_mode_) {
       local_mapper_->RequestStop();
 
@@ -167,7 +167,7 @@ Eigen::Matrix4d System::TrackMonocular(const cv::Mat& img,
   }
 
   {
-    unique_lock<mutex> lock(mutex_reset_);
+    lock_guard<mutex> lock(mutex_reset_);
     if (do_reset_) {
       Twc_ = Eigen::Matrix4d::Identity();
       tracker_->Reset();
@@ -176,15 +176,18 @@ Eigen::Matrix4d System::TrackMonocular(const cv::Mat& img,
   }
 
   Eigen::Matrix4d Tcw = tracker_->GrabImageMonocular(img, timestamp);
+
   {
     std::lock_guard<mutex> lock(mutex_pose_);
     Twc_ = Tcw.inverse();
   }
 
-  unique_lock<mutex> lock2(mutex_state_);
-  tracking_state_ = tracker_->state_;
-  tracked_map_points_ = tracker_->current_frame_.map_points_;
-  tracked_undistort_keypoints_ = tracker_->current_frame_.undistort_keypoints_;
+  {
+    lock_guard<mutex> lock2(mutex_state_);
+    tracking_state_ = tracker_->state_;
+    tracked_map_points_ = tracker_->current_frame_.map_points_;
+    tracked_undistort_keypoints_ = tracker_->current_frame_.undistort_keypoints_;
+  }
 
   return Tcw;
 }
@@ -195,12 +198,12 @@ Eigen::Matrix4d System::GetTwc() {
 }
 
 void System::ActivateLocalizationMode() {
-  unique_lock<mutex> lock(mutex_mode_);
+  lock_guard<mutex> lock(mutex_mode_);
   is_activate_localization_mode_ = true;
 }
 
 void System::DeactivateLocalizationMode() {
-  unique_lock<mutex> lock(mutex_mode_);
+  lock_guard<mutex> lock(mutex_mode_);
   is_deactivate_localization_mode_ = true;
 }
 
@@ -216,7 +219,7 @@ bool System::MapChanged() {
 }
 
 void System::Reset() {
-  unique_lock<mutex> lock(mutex_reset_);
+  lock_guard<mutex> lock(mutex_reset_);
   do_reset_ = true;
 }
 
@@ -226,7 +229,9 @@ void System::Shutdown() {
 
   // Wait until all thread have effectively stopped
   thread_local_mapping_->join();
+  LOG(INFO) << "Local Mapping stopped!";
   thread_loop_closing_->join();
+  LOG(INFO) << "Loop Closing stopped!";
 }
 
 void System::SaveTrajectoryTUM(const string& filename) {
@@ -267,17 +272,17 @@ void System::SaveKeyFrameTrajectoryTUM(const string& filename) {
 }
 
 int System::GetTrackingState() {
-  unique_lock<mutex> lock(mutex_state_);
+  lock_guard<mutex> lock(mutex_state_);
   return tracking_state_;
 }
 
 std::vector<MapPoint*> System::GetTrackedMapPoints() {
-  unique_lock<mutex> lock(mutex_state_);
+  lock_guard<mutex> lock(mutex_state_);
   return tracked_map_points_;
 }
 
 std::vector<cv::KeyPoint> System::GetTrackedKeyPointsUn() {
-  unique_lock<mutex> lock(mutex_state_);
+  lock_guard<mutex> lock(mutex_state_);
   return tracked_undistort_keypoints_;
 }
 

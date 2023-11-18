@@ -2,7 +2,8 @@
 **/install
 **/*.so
 **/.*
-server/maps/*
+server/static/map/*
+server/static/resource/*
 
 !.gitignore
 !.gitmodules

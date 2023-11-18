@@ -165,7 +165,7 @@ void Viewer::Run() {
   while(!exit_required_) 
   {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    std::cout << 'n';
+
     map_drawer_->GetCurrentOpenGLCameraMatrix(Twc);
     s_cam.SetModelViewMatrix(
           pangolin::ModelViewLookAt(view_point_x_, view_point_y_, view_point_z_,
@@ -176,15 +176,13 @@ void Viewer::Run() {
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
     map_drawer_->DrawCurrentCamera(Twc);
-    map_drawer_->DrawKeyFrames(true, true);
+    map_drawer_->DrawKeyFrames(true, false);
     map_drawer_->DrawMapPoints();
 
     pangolin::FinishFrame();
 
-    std::cout << 'r';
-
     {
-      std::unique_lock<std::mutex> lock(mutex_frame_);
+      std::lock_guard<std::mutex> lock(mutex_frame_);
       glFlush();
       pangolin::TypedImage buffer = pangolin::ReadFramebuffer(d_cam.v, "RGBA32");
       cv::Mat matbuf = cv::Mat(buffer.h, buffer.w, CV_8UC4, buffer.ptr);
@@ -195,7 +193,7 @@ void Viewer::Run() {
         cv::flip(frame_map_, frame_map_, 0);
       } 
     }
-    std::cout << 'f';
+
     cv::Mat frame = frame_drawer_->DrawFrame();
     cv::imshow(frame_title, frame);
     cv::waitKey(5);
@@ -208,10 +206,11 @@ void Viewer::Run() {
   pangolin::DestroyWindow(map_title);
   pangolin::QuitAll();
 
+  std::cout << "Viewer Thread Released" << std::endl;
 }
 
 cv::Mat Viewer::GetFrame() {
-  unique_lock<mutex> lock(mutex_frame_);
+  lock_guard<mutex> lock(mutex_frame_);
   return frame_map_;
 }
 

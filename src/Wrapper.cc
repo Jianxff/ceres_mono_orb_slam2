@@ -22,6 +22,8 @@ public:
 
   // add new image to image queue
   void addNewImage(cv::Mat& im, double time_ms) {
+    if(released_) return;
+
     std::lock_guard<std::mutex> lock(img_mutex_);
     img_stream_.push(im);
     img_times_.push(time_ms);
@@ -31,6 +33,8 @@ public:
 
   // get new image from image queue
   bool getNewImage(cv::Mat& im, double& time) {
+    if(released_) return false;
+
     std::lock_guard<std::mutex> lock(img_mutex_);
     if(!new_img_abailable_) return false;
 
@@ -50,9 +54,14 @@ public:
     return true;
   }
 
+  void release() {
+    released_ = true;
+  }
+
 private:
   bool force_realtime_ = false;
   bool new_img_abailable_ = false;
+  bool released_ = false;
   std::mutex img_mutex_;
   std::queue<cv::Mat> img_stream_;
   std::queue<double> img_times_;
@@ -68,8 +77,6 @@ public:
     pstream_.reset(new ImageStream(force_realtime));
     posmap_.reset(new ORB_SLAM2::Osmap(*psystem_));
     system_thread_ = std::thread(&Session::run, this);
-    initialized_ = true;
-    enableViewer();
   }
 
   Session(const std::string voc_file, const int imwidth, const int imheight, bool force_realtime) {
@@ -77,18 +84,13 @@ public:
     pstream_.reset(new ImageStream(force_realtime));
     posmap_.reset(new ORB_SLAM2::Osmap(*psystem_));
     system_thread_ = std::thread(&Session::run, this);
-    initialized_ = true;
-    enableViewer();
   }
 
 
 public:
   // add new image frame
   void addTrack(py::array_t<uint8_t>& input, double time_ms = -1){
-    if(!initialized_) {
-        puts("Not initialized!");
-        return;
-    }
+    if(released_) return;
 
     cv::Mat image = getImageBGR(input);
     cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
@@ -101,11 +103,9 @@ public:
     pstream_->addNewImage(image, time_ms);
   }
 
+  // get feature points
   py::array_t<float> getFeatures() {
-    if(!initialized_) {
-      puts("Not initialized!");
-      return py::array_t<float>();
-    }
+    if(released_) return py::array_t<float>();
 
     auto& kps = psystem_->tracker_->current_frame_.keypoints_;
     std::vector<float> features;
@@ -118,15 +118,13 @@ public:
     return py::array_t<float>({(int)kps.size(), 2}, features.data());
   }
 
-
+  // get current map
   py::array_t<uint8_t> getFrame() {
-    if(!initialized_) {
-      puts("Not initialized!");
+    if(released_) 
       return py::array_t<uint8_t>();
-    }
 
     if(!visualize_) {
-      puts("Viewer not enabled!\n");
+      puts("Viewer not enabled!");
       return py::array_t<uint8_t>();
     }
 
@@ -136,27 +134,24 @@ public:
 
   // get tracking status
   int getTrackingState() {
-    if(!initialized_) {
-      puts("Not initialized!");
-      return -2;
-    }
+    if(released_) return -1;
+
     int state = psystem_->GetTrackingState();
     return state;
   }
 
   // get camera twc
   Eigen::Matrix4d getCameraPoseMatrix() {
-    if(!initialized_) {
-      puts("Not initialized!");
-      return Eigen::Matrix4d::Identity();
-    }
+    if(released_) return Eigen::Matrix4d::Identity();
 
     Eigen::Matrix4d Twc = psystem_->GetTwc();
     return Twc;
   }
 
-
+  // set map save status
   void setSaveMap(bool save_map, const std::string map_name) {
+    if(released_) return;
+
     if(save_map && map_name.length() > 0) {
       save_map_ = true;
       map_name_ = map_name;
@@ -168,13 +163,9 @@ public:
 
   // load map
   void loadMap(bool track_only, const std::string filename){
-    if(!initialized_) {
-      puts("Not initialized!");
-      return;
-    }
+    if(released_) return;
 
     posmap_->mapLoad(filename);
-
     std::cout << "Map loaded from " << filename << std::endl;
 
     if(track_only) {
@@ -182,25 +173,31 @@ public:
       std::cout << "Localization mode activated" << std::endl;
     }
   }
-
+ 
+  // enable viewer thread
+  void enableViewer() {
+    pviewer_.reset(new ORB_SLAM2::Viewer(psystem_.get()));
+    viewer_thread_ = std::thread(&ORB_SLAM2::Viewer::Run, pviewer_);
+    visualize_ = true;
+  }
 
   // stop session
-  void stop() {
+  void release() {
+    if(released_) return;
+    pstream_->release();
     // stop viewer if enabled
     if(pviewer_ != nullptr)
       pviewer_->exit_required_ = true;
     
     exit_required_ = true;
-
     viewer_thread_.join();
-    system_thread_.join();
-    
+
     psystem_->Shutdown();
+    system_thread_.join();
 
     if(save_map_) {
       posmap_->options.set(ORB_SLAM2::Osmap::NO_FEATURES_DESCRIPTORS | ORB_SLAM2::Osmap::ONLY_MAPPOINTS_FEATURES, 1); 
       posmap_->mapSave(map_name_);
-
       std::cout << "Map " << map_name_ << " saved" << std::endl;
     }
 
@@ -208,17 +205,18 @@ public:
     pviewer_.reset();
     pstream_.reset();
 
-    initialized_ = false;
     visualize_ = false;
 
     cv::destroyAllWindows();
 
-    puts("[Session] All threads Stopped");
+    released_ = true;
+    puts("Session Released");
   }
 
 
 
 private:
+  // run thread
   void run() {
     cv::Mat img;
     double time;
@@ -228,15 +226,11 @@ private:
       } else 
         std::this_thread::sleep_for(std::chrono::milliseconds(1000 / 60));
     }
+
+    std::cout << "Stop Processing New Frame" << std::endl;
   }
 
-  // enable viewer thread
-  void enableViewer() {
-    pviewer_.reset(new ORB_SLAM2::Viewer(psystem_.get()));
-    viewer_thread_ = std::thread(&ORB_SLAM2::Viewer::Run, pviewer_);
-    visualize_ = true;
-  }
-
+  // get image from webrtc frame
   cv::Mat getImageBGR(py::array_t<uint8_t>& input) {
     if(input.ndim() != 3) 
       throw std::runtime_error("get Image : number of dimensions must be 3");
@@ -245,10 +239,12 @@ private:
     return image;
   }
 
-  bool initialized_ = false;
+
+  bool released_ = false;
 	bool visualize_ = false;
   bool exit_required_ = false;
   bool save_map_ = false;
+  
   std::string map_name_ = "";
 
 	std::shared_ptr<ORB_SLAM2::System> psystem_ = nullptr;
@@ -263,12 +259,12 @@ private:
 
 
 PYBIND11_MODULE(orbslam2, m) {
-  m.doc() = "ORB-SLAM2 python wrapper";
-
+  m.doc() = "Ceres Mono ORB-SLAM2 Python Wrapper";
 
   py::class_<Session>(m, "Session")
     .def(py::init<const std::string, const std::string, bool>(), py::arg("voc_file"), py::arg("config_file"), py::arg("force_realtime") = false)
     .def(py::init<const std::string, const int, const int, bool>(), py::arg("voc_file"), py::arg("imwidth"), py::arg("imheight"), py::arg("force_realtime") = false)
+    .def("enable_viewer", &Session::enableViewer)
     .def("add_track", &Session::addTrack, py::arg("image"), py::arg("time_ms") = -1)
     .def("tracking_state", &Session::getTrackingState)
     .def("get_position", &Session::getCameraPoseMatrix)
@@ -276,7 +272,7 @@ PYBIND11_MODULE(orbslam2, m) {
     .def("get_features", &Session::getFeatures)
     .def("save_map", &Session::setSaveMap, py::arg("save_map"), py::arg("map_name") = "")
     .def("load_map", &Session::loadMap, py::arg("track_only") = true, py::arg("filename"))
-    .def("stop", &Session::stop);
+    .def("release", &Session::release);
 }
 
 

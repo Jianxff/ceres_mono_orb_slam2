@@ -80,11 +80,11 @@ class LoopClosing {
   void RunGlobalBundleAdjustment(unsigned long nLoopKF);
 
   bool isRunningGBA() {
-    unique_lock<std::mutex> lock(mutex_global_BA_);
+    lock_guard<std::mutex> lock(mutex_global_BA_);
     return is_running_global_BA_;
   }
   bool isFinishedGBA() {
-    unique_lock<std::mutex> lock(mutex_global_BA_);
+    lock_guard<std::mutex> lock(mutex_global_BA_);
     return is_finished_global_BA_;
   }
 

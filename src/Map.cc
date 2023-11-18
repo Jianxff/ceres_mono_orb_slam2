@@ -27,7 +27,7 @@ namespace ORB_SLAM2 {
 Map::Map() : max_keyframe_id_(0), big_change_index_(0) {}
 
 void Map::AddKeyFrame(KeyFrame* keyframe) {
-  unique_lock<mutex> lock(mutex_map_);
+  lock_guard<mutex> lock(mutex_map_);
   keyframes_.insert(keyframe);
   if (keyframe->id_ > max_keyframe_id_) {
     max_keyframe_id_ = keyframe->id_;
@@ -35,12 +35,12 @@ void Map::AddKeyFrame(KeyFrame* keyframe) {
 }
 
 void Map::AddMapPoint(MapPoint* map_point) {
-  unique_lock<mutex> lock(mutex_map_);
+  lock_guard<mutex> lock(mutex_map_);
   map_points_.insert(map_point);
 }
 
 void Map::EraseMapPoint(MapPoint* map_point) {
-  unique_lock<mutex> lock(mutex_map_);
+  lock_guard<mutex> lock(mutex_map_);
   map_points_.erase(map_point);
 
   // TODO: This only erase the pointer.
@@ -48,7 +48,7 @@ void Map::EraseMapPoint(MapPoint* map_point) {
 }
 
 void Map::EraseKeyFrame(KeyFrame* keyframe) {
-  unique_lock<mutex> lock(mutex_map_);
+  lock_guard<mutex> lock(mutex_map_);
   keyframes_.erase(keyframe);
 
   // TODO: This only erase the pointer.
@@ -56,47 +56,47 @@ void Map::EraseKeyFrame(KeyFrame* keyframe) {
 }
 
 void Map::SetReferenceMapPoints(const vector<MapPoint*>& map_points) {
-  unique_lock<mutex> lock(mutex_map_);
+  lock_guard<mutex> lock(mutex_map_);
   reference_map_points_ = map_points;
 }
 
 void Map::InformNewBigChange() {
-  unique_lock<mutex> lock(mutex_map_);
+  lock_guard<mutex> lock(mutex_map_);
   big_change_index_++;
 }
 
 int Map::GetLastBigChangeIdx() {
-  unique_lock<mutex> lock(mutex_map_);
+  lock_guard<mutex> lock(mutex_map_);
   return big_change_index_;
 }
 
 vector<KeyFrame*> Map::GetAllKeyFrames() {
-  unique_lock<mutex> lock(mutex_map_);
+  lock_guard<mutex> lock(mutex_map_);
   return std::vector<KeyFrame*>(keyframes_.begin(), keyframes_.end());
 }
 
 vector<MapPoint*> Map::GetAllMapPoints() {
-  unique_lock<mutex> lock(mutex_map_);
+  lock_guard<mutex> lock(mutex_map_);
   return std::vector<MapPoint*>(map_points_.begin(), map_points_.end());
 }
 
 long unsigned int Map::MapPointsInMap() {
-  unique_lock<mutex> lock(mutex_map_);
+  lock_guard<mutex> lock(mutex_map_);
   return map_points_.size();
 }
 
 long unsigned int Map::KeyFramesInMap() {
-  unique_lock<mutex> lock(mutex_map_);
+  lock_guard<mutex> lock(mutex_map_);
   return keyframes_.size();
 }
 
 vector<MapPoint*> Map::GetReferenceMapPoints() {
-  unique_lock<mutex> lock(mutex_map_);
+  lock_guard<mutex> lock(mutex_map_);
   return reference_map_points_;
 }
 
 long unsigned int Map::GetMaxKFid() {
-  unique_lock<mutex> lock(mutex_map_);
+  lock_guard<mutex> lock(mutex_map_);
   return max_keyframe_id_;
 }
 

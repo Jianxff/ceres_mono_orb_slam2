@@ -47,7 +47,7 @@ cv::Mat FrameDrawer::DrawFrame() {
 
   // Copy variables within scoped mutex
   {
-    unique_lock<mutex> lock(mutex_);
+    lock_guard<mutex> lock(mutex_);
     state = state_;
     if (state_ == Tracking::SYSTEM_NOT_READY) state_ = Tracking::NO_IMAGES_YET;
 
@@ -152,7 +152,7 @@ void FrameDrawer::DrawTextInfo(cv::Mat& img, int state, cv::Mat& imgText) {
 }
 
 void FrameDrawer::Update(Tracking* tracker) {
-  unique_lock<mutex> lock(mutex_);
+  lock_guard<mutex> lock(mutex_);
   tracker->img_gray_.copyTo(image_);
   current_keypoints_ = tracker->current_frame_.keypoints_;
   N_ = current_keypoints_.size();

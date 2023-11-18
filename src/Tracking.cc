@@ -365,7 +365,7 @@ void Tracking::Track() {
   last_processed_state_ = state_;
 
   // Get Map Mutex -> Map cannot be changed
-  unique_lock<mutex> lock(map_->mutex_map_update_);
+  lock_guard<mutex> lock(map_->mutex_map_update_);
 
   if (state_ == NOT_INITIALIZED) {
     MonocularInitialization();
@@ -774,7 +774,6 @@ bool Tracking::TrackLocalMap() {
   // We have an estimation of the camera pose and some map points tracked in
   // the frame. We retrieve the local map and try to find matches to points in
   // the local map.
-
   UpdateLocalMap();
 
   SearchLocalPoints();
@@ -937,7 +936,6 @@ void Tracking::SearchLocalPoints() {
 void Tracking::UpdateLocalMap() {
   // This is for visualization
   map_->SetReferenceMapPoints(local_map_points_);
-
   // Update
   UpdateLocalKeyFrames();
   UpdateLocalPoints();
@@ -1007,7 +1005,9 @@ void Tracking::UpdateLocalKeyFrames() {
        it != itEnd; it++) {
     KeyFrame* keyframe = it->first;
 
-    if (keyframe->isBad()) continue;
+    if (keyframe->isBad()){
+      continue;
+    }
 
     if (it->second > max) {
       max = it->second;

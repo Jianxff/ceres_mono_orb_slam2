@@ -85,10 +85,10 @@ void LocalMapping::Run() {
 
       if (!CheckNewKeyFrames() && !stopRequested()) {
         // Local BA
-        if (map_->KeyFramesInMap() > 2)
+        if (map_->KeyFramesInMap() > 2) {
           CeresOptimizer::LocalBundleAdjustment(current_keyframe_,
                                                 &is_abort_BA_, map_);
-
+        }
         // Check redundant local Keyframes
         KeyFrameCulling();
       }
@@ -116,19 +116,19 @@ void LocalMapping::Run() {
 }
 
 void LocalMapping::InsertKeyFrame(KeyFrame* keyframe) {
-  unique_lock<mutex> lock(mutex_new_keyframes_);
+  lock_guard<mutex> lock(mutex_new_keyframes_);
   new_keyframes_.push_back(keyframe);
   is_abort_BA_ = true;
 }
 
 bool LocalMapping::CheckNewKeyFrames() {
-  unique_lock<mutex> lock(mutex_new_keyframes_);
+  lock_guard<mutex> lock(mutex_new_keyframes_);
   return (!new_keyframes_.empty());
 }
 
 void LocalMapping::ProcessNewKeyFrame() {
   {
-    unique_lock<mutex> lock(mutex_new_keyframes_);
+    lock_guard<mutex> lock(mutex_new_keyframes_);
     current_keyframe_ = new_keyframes_.front();
     new_keyframes_.pop_front();
   }
@@ -505,14 +505,14 @@ Eigen::Matrix3d LocalMapping::ComputeF12(KeyFrame*& pKF1, KeyFrame*& pKF2) {
 }
 
 void LocalMapping::RequestStop() {
-  unique_lock<mutex> lock(mutex_stop_);
+  lock_guard<mutex> lock(mutex_stop_);
   is_stop_requested_ = true;
-  unique_lock<mutex> lock2(mutex_new_keyframes_);
+  lock_guard<mutex> lock2(mutex_new_keyframes_);
   is_abort_BA_ = true;
 }
 
 bool LocalMapping::Stop() {
-  unique_lock<mutex> lock(mutex_stop_);
+  lock_guard<mutex> lock(mutex_stop_);
   if (is_stop_requested_ && !do_not_stop_) {
     is_stopped_ = true;
     cout << "Local Mapping STOP" << endl;
@@ -523,18 +523,18 @@ bool LocalMapping::Stop() {
 }
 
 bool LocalMapping::isStopped() {
-  unique_lock<mutex> lock(mutex_stop_);
+  lock_guard<mutex> lock(mutex_stop_);
   return is_stopped_;
 }
 
 bool LocalMapping::stopRequested() {
-  unique_lock<mutex> lock(mutex_stop_);
+  lock_guard<mutex> lock(mutex_stop_);
   return is_stop_requested_;
 }
 
 void LocalMapping::Release() {
-  unique_lock<mutex> lock(mutex_stop_);
-  unique_lock<mutex> lock2(mutex_finish_);
+  lock_guard<mutex> lock(mutex_stop_);
+  lock_guard<mutex> lock2(mutex_finish_);
   if (is_finished_) {
     return;
   }
@@ -550,17 +550,17 @@ void LocalMapping::Release() {
 }
 
 bool LocalMapping::AcceptKeyFrames() {
-  unique_lock<mutex> lock(mutex_accept_);
+  lock_guard<mutex> lock(mutex_accept_);
   return do_accept_keyframes_;
 }
 
 void LocalMapping::SetAcceptKeyFrames(bool flag) {
-  unique_lock<mutex> lock(mutex_accept_);
+  lock_guard<mutex> lock(mutex_accept_);
   do_accept_keyframes_ = flag;
 }
 
 bool LocalMapping::SetNotStop(bool flag) {
-  unique_lock<mutex> lock(mutex_stop_);
+  lock_guard<mutex> lock(mutex_stop_);
 
   if (flag && is_stopped_) {
     return false;
@@ -646,13 +646,13 @@ Eigen::Matrix3d LocalMapping::SkewSymmetricMatrix(const Eigen::Vector3d& v) {
 
 void LocalMapping::RequestReset() {
   {
-    unique_lock<mutex> lock(mutex_reset_);
+    lock_guard<mutex> lock(mutex_reset_);
     is_reset_requested_ = true;
   }
 
   while (true) {
     {
-      unique_lock<mutex> lock2(mutex_reset_);
+      lock_guard<mutex> lock2(mutex_reset_);
       if (!is_reset_requested_) {
         break;
       }
@@ -662,7 +662,7 @@ void LocalMapping::RequestReset() {
 }
 
 void LocalMapping::ResetIfRequested() {
-  unique_lock<mutex> lock(mutex_reset_);
+  lock_guard<mutex> lock(mutex_reset_);
   if (is_reset_requested_) {
     new_keyframes_.clear();
     recent_added_map_points_.clear();
@@ -671,24 +671,24 @@ void LocalMapping::ResetIfRequested() {
 }
 
 void LocalMapping::RequestFinish() {
-  unique_lock<mutex> lock(mutex_finish_);
+  lock_guard<mutex> lock(mutex_finish_);
   is_finish_requested_ = true;
 }
 
 bool LocalMapping::CheckFinish() {
-  unique_lock<mutex> lock(mutex_finish_);
+  lock_guard<mutex> lock(mutex_finish_);
   return is_finish_requested_;
 }
 
 void LocalMapping::SetFinish() {
-  unique_lock<mutex> lock(mutex_finish_);
+  lock_guard<mutex> lock(mutex_finish_);
   is_finished_ = true;
-  unique_lock<mutex> lock2(mutex_stop_);
+  lock_guard<mutex> lock2(mutex_stop_);
   is_stopped_ = true;
 }
 
 bool LocalMapping::isFinished() {
-  unique_lock<mutex> lock(mutex_finish_);
+  lock_guard<mutex> lock(mutex_finish_);
   return is_finished_;
 }
 }  // namespace ORB_SLAM2

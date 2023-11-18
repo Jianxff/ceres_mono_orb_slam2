@@ -35,7 +35,7 @@ KeyFrameDatabase::KeyFrameDatabase(const ORBVocabulary& voc)
 }
 
 void KeyFrameDatabase::add(KeyFrame* keyframe) {
-  unique_lock<mutex> lock(mutex_);
+  lock_guard<mutex> lock(mutex_);
 
   for (DBoW2::BowVector::const_iterator vit = keyframe->bow_vector_.begin(),
                                         vend = keyframe->bow_vector_.end();
@@ -44,7 +44,7 @@ void KeyFrameDatabase::add(KeyFrame* keyframe) {
 }
 
 void KeyFrameDatabase::erase(KeyFrame* keyframe) {
-  unique_lock<mutex> lock(mutex_);
+  lock_guard<mutex> lock(mutex_);
 
   // Erase elements in the Inverse File for the entry
   for (DBoW2::BowVector::const_iterator vit = keyframe->bow_vector_.begin(),
@@ -77,7 +77,7 @@ std::vector<KeyFrame*> KeyFrameDatabase::DetectLoopCandidates(
   // Search all keyframes that share a word with current keyframes
   // Discard keyframes connected to the query keyframe
   {
-    unique_lock<mutex> lock(mutex_);
+    lock_guard<mutex> lock(mutex_);
 
     for (DBoW2::BowVector::const_iterator vit = keyframe->bow_vector_.begin(),
                                           vend = keyframe->bow_vector_.end();
@@ -205,7 +205,7 @@ vector<KeyFrame*> KeyFrameDatabase::DetectRelocalizationCandidates(
 
   // Search all keyframes that share a word with current frame
   {
-    unique_lock<mutex> lock(mutex_);
+    lock_guard<mutex> lock(mutex_);
 
     for (DBoW2::BowVector::const_iterator vit = frame->bow_vector_.begin(),
                                           vend = frame->bow_vector_.end();

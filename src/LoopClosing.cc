@@ -75,6 +75,7 @@ void LoopClosing::Run() {
         // Compute similarity transformation [sR|t]
         // In the stereo/RGBD case s=1
         if (ComputeSim3()) {
+          LOG(INFO) << "Closing a Loop";
           // Perform loop fusion and pose graph optimization
           CorrectLoop();
         }
@@ -92,20 +93,20 @@ void LoopClosing::Run() {
 }
 
 void LoopClosing::InsertKeyFrame(KeyFrame* keyframe) {
-  unique_lock<mutex> lock(mutex_loop_queue_);
+  lock_guard<mutex> lock(mutex_loop_queue_);
   if (keyframe->id_ != 0) {
     loop_keyframe_queue_.push_back(keyframe);
   }
 }
 
 bool LoopClosing::CheckNewKeyFrames() {
-  unique_lock<mutex> lock(mutex_loop_queue_);
+  lock_guard<mutex> lock(mutex_loop_queue_);
   return (!loop_keyframe_queue_.empty());
 }
 
 bool LoopClosing::DetectLoop() {
   {
-    unique_lock<mutex> lock(mutex_loop_queue_);
+    lock_guard<mutex> lock(mutex_loop_queue_);
     current_keyframe_ = loop_keyframe_queue_.front();
     loop_keyframe_queue_.pop_front();
     // Avoid that a keyframe can be erased while it is being process by this
@@ -407,7 +408,7 @@ void LoopClosing::CorrectLoop() {
 
   // If a Global Bundle Adjustment is running, abort it
   if (isRunningGBA()) {
-    unique_lock<mutex> lock(mutex_global_BA_);
+    lock_guard<mutex> lock(mutex_global_BA_);
     is_stop_global_BA_ = true;
 
     full_BA_index_++;
@@ -441,7 +442,7 @@ void LoopClosing::CorrectLoop() {
 
   {
     // Get Map Mutex
-    unique_lock<mutex> lock(map_->mutex_map_update_);
+    lock_guard<mutex> lock(map_->mutex_map_update_);
 
     for (auto vit = current_connected_keyframes_.begin(),
               vend = current_connected_keyframes_.end();
@@ -611,7 +612,7 @@ void LoopClosing::SearchAndFuse(const KeyFrameAndSim3& CorrectedPosesMap) {
     matcher.Fuse(keyframe, eig_Scw, loop_map_points_, 4, replace_map_points);
 
     // Get Map Mutex
-    unique_lock<mutex> lock(map_->mutex_map_update_);
+    lock_guard<mutex> lock(map_->mutex_map_update_);
     const int nLP = loop_map_points_.size();
     for (int i = 0; i < nLP; i++) {
       MapPoint* replace_map_point = replace_map_points[i];
@@ -625,13 +626,13 @@ void LoopClosing::SearchAndFuse(const KeyFrameAndSim3& CorrectedPosesMap) {
 
 void LoopClosing::RequestReset() {
   {
-    unique_lock<mutex> lock(mutex_reset_);
+    lock_guard<mutex> lock(mutex_reset_);
     is_reset_requested_ = true;
   }
 
   while (true) {
     {
-      unique_lock<mutex> lock2(mutex_reset_);
+      lock_guard<mutex> lock2(mutex_reset_);
       if (!is_reset_requested_) {
         break;
       }
@@ -641,7 +642,7 @@ void LoopClosing::RequestReset() {
 }
 
 void LoopClosing::ResetIfRequested() {
-  unique_lock<mutex> lock(mutex_reset_);
+  lock_guard<mutex> lock(mutex_reset_);
   if (is_reset_requested_) {
     loop_keyframe_queue_.clear();
     last_loop_keyframe_id_ = 0;
@@ -662,7 +663,7 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
   // the updated map. We need to propagate the correction through the spanning
   // tree
   {
-    unique_lock<mutex> lock(mutex_global_BA_);
+    lock_guard<mutex> lock(mutex_global_BA_);
     if (index != full_BA_index_) return;
 
     if (!is_stop_global_BA_) {
@@ -676,7 +677,7 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
       }
 
       // Get Map Mutex
-      unique_lock<mutex> lock(map_->mutex_map_update_);
+      lock_guard<mutex> lock(map_->mutex_map_update_);
 
       // Correct keyframes starting at map first keyframe
       list<KeyFrame*> keyframes_to_check(map_->keyframe_origins_.begin(),
@@ -751,22 +752,22 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
 }
 
 void LoopClosing::RequestFinish() {
-  unique_lock<mutex> lock(mutex_finish_);
+  lock_guard<mutex> lock(mutex_finish_);
   is_finish_requested_ = true;
 }
 
 bool LoopClosing::CheckFinish() {
-  unique_lock<mutex> lock(mutex_finish_);
+  lock_guard<mutex> lock(mutex_finish_);
   return is_finish_requested_;
 }
 
 void LoopClosing::SetFinish() {
-  unique_lock<mutex> lock(mutex_finish_);
+  lock_guard<mutex> lock(mutex_finish_);
   is_finished_ = true;
 }
 
 bool LoopClosing::isFinished() {
-  unique_lock<mutex> lock(mutex_finish_);
+  lock_guard<mutex> lock(mutex_finish_);
   return is_finished_;
 }
 }  // namespace ORB_SLAM2

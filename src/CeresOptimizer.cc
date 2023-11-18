@@ -281,7 +281,7 @@ int CeresOptimizer::PoseOptimization(Frame* frame) {
   Eigen::Quaterniond frame_qcw;
   int n_bad = 0;
   {
-    unique_lock<mutex> lock(MapPoint::global_mutex_);
+    lock_guard<mutex> lock(MapPoint::global_mutex_);
     // Get frame Pose
     Eigen::Matrix4d frame_pose = frame->Tcw_;
     Eigen::Matrix3d frame_R;
@@ -570,7 +570,7 @@ reoptimize:
     goto reoptimize;
   }
 
-  unique_lock<mutex> lock(map->mutex_map_update_);
+  lock_guard<mutex> lock(map->mutex_map_update_);
   if (!to_erase.empty()) {
     for (size_t i = 0; i < to_erase.size(); i++) {
       KeyFrame* keyframe = to_erase[i].first;
@@ -911,7 +911,7 @@ void CeresOptimizer::OptimizeEssentialGraph(
   ceres::Solve(options, &problem, &summary);
   LOG(INFO) << summary.FullReport();
 
-  unique_lock<mutex> lock(map->mutex_map_update_);
+  lock_guard<mutex> lock(map->mutex_map_update_);
 
   // SE3 Pose Recovering. Sim3d:[sR t;0 1] -> SE3:[R t/s;0 1]
   for (size_t i = 0; i < all_keyframes.size(); i++) {

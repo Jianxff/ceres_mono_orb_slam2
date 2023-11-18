@@ -76,7 +76,7 @@ class LocalMapping {
   bool isFinished();
 
   int KeyframesInQueue() {
-    unique_lock<mutex> lock(mutex_new_keyframes_);
+    lock_guard<mutex> lock(mutex_new_keyframes_);
     return new_keyframes_.size();
   }
 
