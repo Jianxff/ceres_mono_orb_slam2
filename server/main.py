@@ -85,11 +85,11 @@ async def session_handler(request):
   
   # create slam session
   session = orbslam2.Session('../vocabulary/voc.bin', 640, 480, True)
-  session.enable_viewer(off_screen = True)
+  session.enable_viewer(off_screen = False)
   if params['mode'] == 'slam_save': 
-    session.save_map(True, 'statis/map/test')
+    session.save_map(True, './static/map/test')
   elif params['mode'] == 'tracking': 
-    session.load_map(True, 'static/map/test.yaml')
+    session.load_map(True, './static/map/test.yaml')
 
   # create data channel to send position and state
   channels = {
@@ -101,7 +101,7 @@ async def session_handler(request):
   async def on_connectionstatechange():
     log_info('Connection state is %s', pc.connectionState)
     if pc.connectionState == 'failed':
-      session.release()
+      session.cancel()
       await pc.close()
       pcs.discard(pc)
 
@@ -111,6 +111,7 @@ async def session_handler(request):
       @channel.on('message')
       def on_message(message):
         if isinstance(message, str) and message == 'release':
+          session.save_pcd('./static/pcd/test')
           session.release()
 
   # track images
@@ -165,6 +166,7 @@ if __name__ == "__main__":
   app = web.Application()
   app.on_shutdown.append(on_shutdown)
   app.router.add_post('/session', session_handler)
+  app.router.add_static('/static', './static')
   
   web.run_app(
     app, access_log=None, host=args.host, port=args.port, ssl_context=ssl_context

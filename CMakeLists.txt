@@ -18,6 +18,7 @@ find_package(Ceres REQUIRED)
 find_package(Sophus REQUIRED)
 find_package(Pangolin REQUIRED)
 find_package(Protobuf REQUIRED)
+find_package(PCL REQUIRED)
 
 
 ##########################
@@ -75,5 +76,6 @@ target_link_libraries(${PROJECT_NAME}
     ${Pangolin_LIBRARIES}
     ${OpenCV_LIBS}
     ${PROTOBUF_LIBRARIES}
+    ${PCL_LIBRARIES}
     ${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
 )

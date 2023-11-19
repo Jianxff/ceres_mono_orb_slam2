@@ -3,6 +3,7 @@
 **/*.so
 **/.*
 server/static/map/*
+server/static/pcd/*
 server/static/resource/*
 
 !.gitignore
