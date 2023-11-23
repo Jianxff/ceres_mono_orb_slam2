@@ -79,23 +79,23 @@ void Session::addTrack(py::array_t<uint8_t>& input, double time_ms){
   pstream_->addNewImage(image, time_ms);
 }
 
-// get feature points
-py::array_t<float> Session::getFeatures() {
-  if(released_) return py::array_t<float>();
+// // get feature points
+// py::array_t<float> Session::getFeatures() {
+//   if(released_) return py::array_t<float>();
 
-  auto& kps = psystem_->tracker_->current_frame_.keypoints_;
-  std::vector<float> features;
-  features.reserve(kps.size() * 2);
-  for(auto& kp : kps) {
-    features.emplace_back(kp.pt.x);
-    features.emplace_back(kp.pt.y);
-  }
+//   auto& kps = psystem_->tracker_->current_frame_.keypoints_;
+//   std::vector<float> features;
+//   features.reserve(kps.size() * 2);
+//   for(auto& kp : kps) {
+//     features.emplace_back(kp.pt.x);
+//     features.emplace_back(kp.pt.y);
+//   }
 
-  return py::array_t<float>({(int)kps.size(), 2}, features.data());
-}
+//   return py::array_t<float>({(int)kps.size(), 2}, features.data());
+// }
 
 // get current map
-py::array_t<uint8_t> Session::getFrame() {
+py::array_t<uint8_t> Session::getMapVisualFrame() {
   if(released_) 
     return py::array_t<uint8_t>();
 
@@ -104,7 +104,21 @@ py::array_t<uint8_t> Session::getFrame() {
     return py::array_t<uint8_t>();
   }
 
-  cv::Mat frame = pviewer_->GetFrame();
+  cv::Mat frame = pviewer_->GetMap();
+  return py::array_t<uint8_t>({frame.rows, frame.cols, 3}, frame.data);
+}
+
+// get current orb features
+py::array_t<uint8_t> Session::getOrbVisualFrame() {
+  if(released_) 
+    return py::array_t<uint8_t>();
+
+  if(!visualize_) {
+    puts("Viewer not enabled!");
+    return py::array_t<uint8_t>();
+  }
+
+  cv::Mat frame = pviewer_->GetOrb();
   return py::array_t<uint8_t>({frame.rows, frame.cols, 3}, frame.data);
 }
 
@@ -242,18 +256,18 @@ void Session::savePointCloud(const std::string filename) {
   pcl::io::savePCDFileBinary(filename + ".pcd", cloud);
   LOG(INFO) << cloud.size() <<" point clouds saved to " << filename << ".pcd";
 
-  Eigen::Matrix4d twc = psystem_->GetTwc();
-  ofstream f;
-  f.open(filename + ".json", ios::out);
-  f << "{" << endl;
-  f << "  \"matrix\": [" << endl;
-  f << "    [" << twc(0,0) << ", " << twc(0,1) << ", " << twc(0,2) << ", " << twc(0,3) << "]," << endl;
-  f << "    [" << twc(1,0) << ", " << twc(1,1) << ", " << twc(1,2) << ", " << twc(1,3) << "]," << endl;
-  f << "    [" << twc(2,0) << ", " << twc(2,1) << ", " << twc(2,2) << ", " << twc(2,3) << "]," << endl;
-  f << "    [" << twc(3,0) << ", " << twc(3,1) << ", " << twc(3,2) << ", " << twc(3,3) << "]" << endl;
-  f << "  ]" << endl;
-  f << "}" << endl;
-  f.close();
+  // Eigen::Matrix4d twc = psystem_->GetTwc();
+  // ofstream f;
+  // f.open(filename + ".json", ios::out);
+  // f << "{" << endl;
+  // f << "  \"matrix\": [" << endl;
+  // f << "    [" << twc(0,0) << ", " << twc(0,1) << ", " << twc(0,2) << ", " << twc(0,3) << "]," << endl;
+  // f << "    [" << twc(1,0) << ", " << twc(1,1) << ", " << twc(1,2) << ", " << twc(1,3) << "]," << endl;
+  // f << "    [" << twc(2,0) << ", " << twc(2,1) << ", " << twc(2,2) << ", " << twc(2,3) << "]," << endl;
+  // f << "    [" << twc(3,0) << ", " << twc(3,1) << ", " << twc(3,2) << ", " << twc(3,3) << "]" << endl;
+  // f << "  ]" << endl;
+  // f << "}" << endl;
+  // f.close();
 
 }
 

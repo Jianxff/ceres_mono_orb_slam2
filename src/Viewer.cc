@@ -185,7 +185,7 @@ void Viewer::Run(bool off_screen) {
     pangolin::FinishFrame();
 
     {
-      std::lock_guard<std::mutex> lock(mutex_frame_);
+      std::lock_guard<std::mutex> lock(mutex_map_);
       glFlush();
       pangolin::TypedImage buffer = pangolin::ReadFramebuffer(d_cam.v, "RGBA32");
       cv::Mat matbuf = cv::Mat(buffer.h, buffer.w, CV_8UC4, buffer.ptr);
@@ -214,9 +214,15 @@ void Viewer::Run(bool off_screen) {
   
 }
 
-cv::Mat Viewer::GetFrame() {
-  lock_guard<mutex> lock(mutex_frame_);
+cv::Mat Viewer::GetMap() {
+  lock_guard<mutex> lock(mutex_map_);
   return frame_map_;
+}
+
+cv::Mat Viewer::GetOrb() {
+  lock_guard<mutex> lock(mutex_orb_);
+  frame_orb_ = frame_drawer_->DrawFrame();
+  return frame_orb_;
 }
 
 }  // namespace ORB_SLAM2

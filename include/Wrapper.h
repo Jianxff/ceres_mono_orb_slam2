@@ -46,10 +46,12 @@ public:
 public:
   // add new image frame
   void addTrack(py::array_t<uint8_t>& input, double time_ms = -1);
-  // get feature points
-  py::array_t<float> getFeatures();
+  // // get feature points
+  // py::array_t<float> getFeatures();
   // get current map
-  py::array_t<uint8_t> getFrame();
+  py::array_t<uint8_t> getMapVisualFrame();
+  // get current orb feature
+  py::array_t<uint8_t> getOrbVisualFrame();
   // get tracking status
   py::array_t<size_t> getTrackingState();
   // get camera twc
@@ -103,8 +105,8 @@ PYBIND11_MODULE(orbslam2, m) {
     .def("add_track", &Session::addTrack, py::arg("image"), py::arg("time_ms") = -1)
     .def("tracking_state", &Session::getTrackingState)
     .def("get_position", &Session::getCameraPoseMatrix)
-    .def("get_frame", &Session::getFrame)
-    .def("get_features", &Session::getFeatures)
+    .def("get_map_visual", &Session::getMapVisualFrame)
+    .def("get_orb_visual", &Session::getOrbVisualFrame)
     .def("save_map", &Session::setSaveMap, py::arg("save_map"), py::arg("map_name") = "")
     .def("load_map", &Session::loadMap, py::arg("track_only") = true, py::arg("filename"))
     .def("save_pcd", &Session::savePointCloud, py::arg("filename"))

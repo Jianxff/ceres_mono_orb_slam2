@@ -80,29 +80,29 @@ cv::Mat FrameDrawer::DrawFrame() {
     }
   } else if (state == Tracking::OK) {
     // TRACKING
-    ntracked_ = 0;
-    ntracked_vo_ = 0;
-    const float r = 5;
+    // ntracked_ = 0;
+    // ntracked_vo_ = 0;
+    // const float r = 5;
     const int n = current_keypoints.size();
     for (int i = 0; i < n; i++) {
       if (do_vo[i] || do_map[i]) {
-        cv::Point2f pt1, pt2;
-        pt1.x = current_keypoints[i].pt.x - r;
-        pt1.y = current_keypoints[i].pt.y - r;
-        pt2.x = current_keypoints[i].pt.x + r;
-        pt2.y = current_keypoints[i].pt.y + r;
+        // cv::Point2f pt1, pt2;
+        // pt1.x = current_keypoints[i].pt.x - r;
+        // pt1.y = current_keypoints[i].pt.y - r;
+        // pt2.x = current_keypoints[i].pt.x + r;
+        // pt2.y = current_keypoints[i].pt.y + r;
 
         // This is a match to a MapPoint in the map
         if (do_map[i]) {
-          cv::rectangle(img, pt1, pt2, cv::Scalar(0, 255, 0));
-          cv::circle(img, current_keypoints[i].pt, 2, cv::Scalar(0, 255, 0),
+          // cv::rectangle(img, pt1, pt2, cv::Scalar(0, 255, 0));
+          cv::circle(img, current_keypoints[i].pt, 3, cv::Scalar(0, 255, 0),
                      -1);
           ntracked_++;
         } else  // This is match to a "visual odometry" MapPoint created in the
                 // last frame
         {
-          cv::rectangle(img, pt1, pt2, cv::Scalar(255, 0, 0));
-          cv::circle(img, current_keypoints[i].pt, 2, cv::Scalar(255, 0, 0),
+          // cv::rectangle(img, pt1, pt2, cv::Scalar(255, 0, 0));
+          cv::circle(img, current_keypoints[i].pt, 3, cv::Scalar(255, 0, 0),
                      -1);
           ntracked_vo_++;
         }
@@ -110,10 +110,12 @@ cv::Mat FrameDrawer::DrawFrame() {
     }
   }
 
-  cv::Mat imgWithInfo;
-  DrawTextInfo(img, state, imgWithInfo);
+  return img;
 
-  return imgWithInfo;
+  // cv::Mat imgWithInfo;
+  // DrawTextInfo(img, state, imgWithInfo);
+
+  // return imgWithInfo;
 }
 
 void FrameDrawer::DrawTextInfo(cv::Mat& img, int state, cv::Mat& imgText) {

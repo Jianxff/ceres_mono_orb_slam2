@@ -55,7 +55,8 @@ class Viewer {
   // We use Pangolin.
   void Run(bool off_screen = true);
 
-  cv::Mat GetFrame();
+  cv::Mat GetMap();
+  cv::Mat GetOrb();
 
   bool exit_required_;
 
@@ -73,7 +74,9 @@ class Viewer {
   float view_point_x_, view_point_y_, view_point_z_, view_point_f_;
 
   cv::Mat frame_map_;
-  std::mutex mutex_frame_;
+  cv::Mat frame_orb_;
+  std::mutex mutex_map_;
+  std::mutex mutex_orb_;
 };
 
 }  // namespace ORB_SLAM2
